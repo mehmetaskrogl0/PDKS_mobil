@@ -15,6 +15,10 @@ router = APIRouter(
 )
 
 
+# =========================
+# MESAFE HESAPLAMA
+# =========================
+
 def calculate_distance(
     lat1,
     lon1,
@@ -26,13 +30,12 @@ def calculate_distance(
 
     lat1 = radians(lat1)
     lon1 = radians(lon1)
+
     lat2 = radians(lat2)
     lon2 = radians(lon2)
 
-
     dlat = lat2 - lat1
     dlon = lon2 - lon1
-
 
     a = (
         sin(dlat / 2) ** 2
@@ -44,12 +47,10 @@ def calculate_distance(
         sin(dlon / 2) ** 2
     )
 
-
     c = 2 * atan2(
         sqrt(a),
         sqrt(1 - a)
     )
-
 
     return R * c
 
@@ -66,7 +67,8 @@ def check_in(
     current_user: User = Depends(get_current_user)
 ):
 
-    # Kullanıcının aktif mesaisi var mı kontrol et
+    # Aktif giriş kontrolü
+
     active_attendance = db.query(Attendance).filter(
         Attendance.user_id == current_user.id,
         Attendance.check_out_time == None
@@ -76,11 +78,13 @@ def check_in(
     if active_attendance:
         raise HTTPException(
             status_code=400,
-            detail="Zaten aktif bir mesai kaydınız var. Önce çıkış yapmalısınız."
+            detail="Zaten aktif girişiniz var."
         )
 
 
-    # Kullanıcının bağlı olduğu iş yerini bul
+
+    # Kullanıcının iş yeri
+
     workplace = db.query(Workplace).filter(
         Workplace.id == current_user.workplace_id
     ).first()
@@ -89,11 +93,13 @@ def check_in(
     if not workplace:
         raise HTTPException(
             status_code=404,
-            detail="Kullanıcıya atanmış iş yeri bulunamadı"
+            detail="İş yeri bulunamadı."
         )
 
 
-    # Mesafe hesaplama
+
+    # Konum kontrolü
+
     distance = calculate_distance(
         data.latitude,
         data.longitude,
@@ -102,7 +108,6 @@ def check_in(
     )
 
 
-    # Yarıçap kontrolü
     if distance > workplace.radius:
         raise HTTPException(
             status_code=400,
@@ -110,24 +115,80 @@ def check_in(
         )
 
 
-    # Attendance kaydı oluştur
+
+    # Geç kalma hesaplama
+
+    now = datetime.now()
+
+    late = False
+    late_minutes = 0
+
+
+    if workplace.start_time:
+
+        work_start = datetime.strptime(
+            workplace.start_time,
+            "%H:%M"
+        ).time()
+
+
+        if now.time() > work_start:
+
+            late = True
+
+            start_datetime = datetime.combine(
+                now.date(),
+                work_start
+            )
+
+
+            late_minutes = int(
+                (
+                    now - start_datetime
+                ).total_seconds() / 60
+            )
+
+
+
+    # Attendance oluştur
+
     attendance = Attendance(
+
         user_id=current_user.id,
+
         check_in_lat=data.latitude,
-        check_in_long=data.longitude
+
+        check_in_long=data.longitude,
+
+        late=late,
+
+        late_minutes=late_minutes
+
     )
 
 
     db.add(attendance)
+
     db.commit()
+
     db.refresh(attendance)
 
 
+
     return {
+
         "message": "Giriş başarılı",
-        "distance": distance,
-        "workplace": workplace.name
+
+        "distance": round(distance,2),
+
+        "workplace": workplace.name,
+
+        "late": late,
+
+        "late_minutes": late_minutes
+
     }
+
 
 
 
@@ -142,105 +203,154 @@ def check_out(
     current_user: User = Depends(get_current_user)
 ):
 
-    # Kullanıcının iş yeri atanmış mı?
-    if current_user.workplace_id is None:
-        raise HTTPException(
-            status_code=400,
-            detail="Kullanıcıya iş yeri atanmamış."
-        )
 
-    # Kullanıcının iş yerini al
     workplace = db.query(Workplace).filter(
         Workplace.id == current_user.workplace_id
     ).first()
 
+
+
     if not workplace:
         raise HTTPException(
             status_code=404,
-            detail="İşyeri bulunamadı"
+            detail="İş yeri bulunamadı."
         )
 
-    # Konum kontrolü
+
+
     distance = calculate_distance(
+
         data.latitude,
+
         data.longitude,
+
         workplace.latitude,
+
         workplace.longitude
+
     )
 
+
+
     if distance > workplace.radius:
+
         raise HTTPException(
+
             status_code=400,
+
             detail=f"İşyeri dışında. Mesafe: {int(distance)} metre"
+
         )
 
-    # Açık giriş kaydı var mı?
+
+
     attendance = db.query(Attendance).filter(
+
         Attendance.user_id == current_user.id,
+
         Attendance.check_out_time == None
+
     ).first()
 
+
+
     if not attendance:
+
         raise HTTPException(
+
             status_code=400,
-            detail="Aktif giriş kaydı bulunamadı"
+
+            detail="Aktif giriş kaydı yok."
+
         )
 
-    # Çıkış işlemi
+
+
     attendance.check_out_lat = data.latitude
+
     attendance.check_out_long = data.longitude
+
     attendance.check_out_time = datetime.now()
 
-    # Çalışma süresi
-    work_duration = attendance.check_out_time - attendance.check_in_time
+
+
+    duration = (
+        attendance.check_out_time
+        -
+        attendance.check_in_time
+    )
+
+
 
     db.commit()
+
     db.refresh(attendance)
 
+
+
     return {
-        "message": "Çıkış başarılı",
-        "check_out_time": attendance.check_out_time,
-        "work_duration": str(work_duration),
-        "distance": round(distance, 2)
+
+        "message":"Çıkış başarılı",
+
+        "work_duration":str(duration),
+
+        "distance":round(distance,2)
+
     }
 
 
 
+
 # =========================
-# KENDİ ATTENDANCE KAYITLARI
+# PERSONEL KENDİ KAYITLARI
 # =========================
 
 @router.get("/my-attendance")
 def my_attendance(
+
     db: Session = Depends(get_db),
+
     current_user: User = Depends(get_current_user)
+
 ):
 
+
     records = db.query(Attendance).filter(
+
         Attendance.user_id == current_user.id
+
     ).all()
+
 
 
     result = []
 
 
+
     for record in records:
+
 
         duration = None
 
 
         if record.check_out_time:
 
-            total_seconds = (
-                record.check_out_time -
+            seconds = (
+
+                record.check_out_time
+
+                -
+
                 record.check_in_time
+
             ).total_seconds()
 
 
-            hours = int(total_seconds // 3600)
+
+            hours = int(seconds // 3600)
 
             minutes = int(
-                (total_seconds % 3600) // 60
+                (seconds % 3600) // 60
             )
 
 
@@ -249,14 +359,26 @@ def my_attendance(
 
 
         result.append({
-            "id": record.id,
-            "check_in": record.check_in_time,
-            "check_out": record.check_out_time,
-            "duration": duration
+
+            "id":record.id,
+
+            "check_in":record.check_in_time,
+
+            "check_out":record.check_out_time,
+
+            "duration":duration,
+
+            "late":record.late,
+
+            "late_minutes":record.late_minutes
+
         })
 
 
+
     return result
+
+
 
 
 
@@ -266,6 +388,68 @@ def my_attendance(
 
 @router.get("/all")
 def get_all_attendance(
+
+    db: Session = Depends(get_db),
+
+    admin: User = Depends(admin_required)
+
+):
+
+
+    records = db.query(
+
+        Attendance,
+
+        User
+
+    ).join(
+
+        User,
+
+        Attendance.user_id == User.id
+
+    ).all()
+
+
+
+    result = []
+
+
+
+    for attendance,user in records:
+
+
+        result.append({
+
+            "personel":
+            f"{user.name} {user.surname}",
+
+            "email":user.email,
+
+            "check_in":
+            attendance.check_in_time,
+
+            "check_out":
+            attendance.check_out_time,
+
+            "late":
+            attendance.late,
+
+            "late_minutes":
+            attendance.late_minutes
+
+        })
+
+
+
+    return result
+
+# =========================
+# ADMIN GEÇ KALANLAR
+# =========================
+
+@router.get("/late")
+def get_late_attendance(
     db: Session = Depends(get_db),
     admin: User = Depends(admin_required)
 ):
@@ -276,6 +460,8 @@ def get_all_attendance(
     ).join(
         User,
         Attendance.user_id == User.id
+    ).filter(
+        Attendance.late == True
     ).all()
 
 
@@ -284,34 +470,20 @@ def get_all_attendance(
 
     for attendance, user in records:
 
-        duration = None
-
-
-        if attendance.check_out_time:
-
-            total_seconds = (
-                attendance.check_out_time -
-                attendance.check_in_time
-            ).total_seconds()
-
-
-            hours = int(total_seconds // 3600)
-
-            minutes = int(
-                (total_seconds % 3600) // 60
-            )
-
-
-            duration = f"{hours} saat {minutes} dakika"
-
-
-
         result.append({
-            "personel": f"{user.name} {user.surname}",
-            "email": user.email,
-            "check_in": attendance.check_in_time,
-            "check_out": attendance.check_out_time,
-            "duration": duration
+
+            "personel":
+            f"{user.name} {user.surname}",
+
+            "email":
+            user.email,
+
+            "check_in":
+            attendance.check_in_time,
+
+            "late_minutes":
+            attendance.late_minutes
+
         })
 
 

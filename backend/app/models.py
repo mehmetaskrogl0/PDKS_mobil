@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey, Boolean
 from sqlalchemy.sql import func
 from .database import Base
 
@@ -26,6 +26,7 @@ class User(Base):
     )
 
 
+
 class Workplace(Base):
 
     __tablename__ = "workplaces"
@@ -40,6 +41,13 @@ class Workplace(Base):
 
     radius = Column(Integer)
 
+    # Mesai başlangıç saati
+    # Örnek: 09:00
+    start_time = Column(
+        String(5),
+        default="09:00"
+    )
+
 
 
 class Attendance(Base):
@@ -48,19 +56,47 @@ class Attendance(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id")
+    )
 
-    check_in_time = Column(DateTime, default=func.now())
+    check_in_time = Column(
+        DateTime,
+        default=func.now()
+    )
 
-    check_out_time = Column(DateTime, nullable=True)
+    check_out_time = Column(
+        DateTime,
+        nullable=True
+    )
 
     check_in_lat = Column(Float)
 
     check_in_long = Column(Float)
 
-    check_out_lat = Column(Float, nullable=True)
+    check_out_lat = Column(
+        Float,
+        nullable=True
+    )
 
-    check_out_long = Column(Float, nullable=True)
+    check_out_long = Column(
+        Float,
+        nullable=True
+    )
+
+
+    # Geç kalma bilgisi
+
+    late = Column(
+        Boolean,
+        default=False
+    )
+
+    late_minutes = Column(
+        Integer,
+        default=0
+    )
 
 
 
@@ -68,7 +104,11 @@ class Leave(Base):
 
     __tablename__ = "leaves"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
 
     user_id = Column(
         Integer,
@@ -76,9 +116,15 @@ class Leave(Base):
         nullable=False
     )
 
-    start_date = Column(Date, nullable=False)
+    start_date = Column(
+        Date,
+        nullable=False
+    )
 
-    end_date = Column(Date, nullable=False)
+    end_date = Column(
+        Date,
+        nullable=False
+    )
 
     reason = Column(
         String(255),
@@ -94,4 +140,5 @@ class Leave(Base):
         DateTime,
         server_default=func.now()
     )
+   
 

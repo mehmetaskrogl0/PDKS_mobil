@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Workplace, User
+from ..schemas import WorkplaceCreate, WorkplaceResponse
 from ..security import admin_required
 
 
@@ -13,23 +14,23 @@ router = APIRouter(
 
 
 
+# =========================
 # ADMIN İŞYERİ EKLER
+# =========================
 
-@router.post("/")
+@router.post("/", response_model=WorkplaceResponse)
 def create_workplace(
-    name: str,
-    latitude: float,
-    longitude: float,
-    radius: int,
+    data: WorkplaceCreate,
     db: Session = Depends(get_db),
     admin: User = Depends(admin_required)
 ):
 
     workplace = Workplace(
-        name=name,
-        latitude=latitude,
-        longitude=longitude,
-        radius=radius
+        name=data.name,
+        latitude=data.latitude,
+        longitude=data.longitude,
+        radius=data.radius,
+        start_time=data.start_time
     )
 
 
@@ -38,16 +39,16 @@ def create_workplace(
     db.refresh(workplace)
 
 
-    return {
-        "message": "İşyeri oluşturuldu",
-        "id": workplace.id
-    }
+    return workplace
 
 
 
-# TÜM İŞYERLERİN LİSTESİ
 
-@router.get("/")
+# =========================
+# TÜM İŞYERLERİ GETİR
+# =========================
+
+@router.get("/", response_model=list[WorkplaceResponse])
 def get_workplaces(
     db: Session = Depends(get_db),
     admin: User = Depends(admin_required)
@@ -56,15 +57,18 @@ def get_workplaces(
     workplaces = db.query(Workplace).all()
 
     return workplaces
-# İŞYERİ GÜNCELLEME
+
+
+
+
+# =========================
+# İŞYERİ GÜNCELLE
+# =========================
 
 @router.put("/{workplace_id}")
 def update_workplace(
     workplace_id: int,
-    name: str,
-    latitude: float,
-    longitude: float,
-    radius: int,
+    data: WorkplaceCreate,
     db: Session = Depends(get_db),
     admin: User = Depends(admin_required)
 ):
@@ -81,10 +85,13 @@ def update_workplace(
         )
 
 
-    workplace.name = name
-    workplace.latitude = latitude
-    workplace.longitude = longitude
-    workplace.radius = radius
+
+    workplace.name = data.name
+    workplace.latitude = data.latitude
+    workplace.longitude = data.longitude
+    workplace.radius = data.radius
+    workplace.start_time = data.start_time
+
 
 
     db.commit()
@@ -97,7 +104,10 @@ def update_workplace(
 
 
 
-# İŞYERİ SİLME
+
+# =========================
+# İŞYERİ SİL
+# =========================
 
 @router.delete("/{workplace_id}")
 def delete_workplace(
@@ -111,11 +121,13 @@ def delete_workplace(
     ).first()
 
 
+
     if not workplace:
         raise HTTPException(
             status_code=404,
             detail="İşyeri bulunamadı"
         )
+
 
 
     db.delete(workplace)
