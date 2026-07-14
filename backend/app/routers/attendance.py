@@ -142,10 +142,17 @@ def check_out(
     current_user: User = Depends(get_current_user)
 ):
 
-    workplace = db.query(Workplace).filter(
-    Workplace.id == current_user.workplace_id
-).first()
+    # Kullanıcının iş yeri atanmış mı?
+    if current_user.workplace_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Kullanıcıya iş yeri atanmamış."
+        )
 
+    # Kullanıcının iş yerini al
+    workplace = db.query(Workplace).filter(
+        Workplace.id == current_user.workplace_id
+    ).first()
 
     if not workplace:
         raise HTTPException(
@@ -153,7 +160,7 @@ def check_out(
             detail="İşyeri bulunamadı"
         )
 
-
+    # Konum kontrolü
     distance = calculate_distance(
         data.latitude,
         data.longitude,
@@ -161,19 +168,17 @@ def check_out(
         workplace.longitude
     )
 
-
     if distance > workplace.radius:
         raise HTTPException(
             status_code=400,
             detail=f"İşyeri dışında. Mesafe: {int(distance)} metre"
         )
 
-
+    # Açık giriş kaydı var mı?
     attendance = db.query(Attendance).filter(
         Attendance.user_id == current_user.id,
         Attendance.check_out_time == None
     ).first()
-
 
     if not attendance:
         raise HTTPException(
@@ -181,20 +186,22 @@ def check_out(
             detail="Aktif giriş kaydı bulunamadı"
         )
 
-
+    # Çıkış işlemi
     attendance.check_out_lat = data.latitude
     attendance.check_out_long = data.longitude
     attendance.check_out_time = datetime.now()
 
+    # Çalışma süresi
+    work_duration = attendance.check_out_time - attendance.check_in_time
 
     db.commit()
     db.refresh(attendance)
 
-
     return {
         "message": "Çıkış başarılı",
         "check_out_time": attendance.check_out_time,
-        "distance": distance
+        "work_duration": str(work_duration),
+        "distance": round(distance, 2)
     }
 
 

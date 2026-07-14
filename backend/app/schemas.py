@@ -1,4 +1,6 @@
 from pydantic import BaseModel
+from datetime import date, datetime
+
 
 
 class UserCreate(BaseModel):
@@ -25,3 +27,21 @@ class AttendanceCreate(BaseModel):
 
     latitude: float
     longitude: float
+
+class LeaveCreate(BaseModel):
+    start_date: date
+    end_date: date
+    reason: str
+
+
+class LeaveResponse(BaseModel):
+    id: int
+    user_id: int
+    start_date: date
+    end_date: date
+    reason: str
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

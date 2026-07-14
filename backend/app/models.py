@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from .database import Base
 
@@ -61,4 +61,37 @@ class Attendance(Base):
     check_out_lat = Column(Float, nullable=True)
 
     check_out_long = Column(Float, nullable=True)
+
+
+
+class Leave(Base):
+
+    __tablename__ = "leaves"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False
+    )
+
+    start_date = Column(Date, nullable=False)
+
+    end_date = Column(Date, nullable=False)
+
+    reason = Column(
+        String(255),
+        nullable=False
+    )
+
+    status = Column(
+        String(50),
+        default="pending"
+    )
+
+    created_at = Column(
+        DateTime,
+        server_default=func.now()
+    )
 
