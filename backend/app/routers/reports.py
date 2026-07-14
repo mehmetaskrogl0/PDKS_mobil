@@ -18,7 +18,6 @@ router = APIRouter(
 )
 
 
-
 # =========================
 # AYLIK RAPOR
 # =========================
@@ -81,9 +80,14 @@ def monthly_report(
 
     late_minutes = 0
 
+    total_overtime = 0
+
+    total_missing = 0
+
 
 
     for record in attendances:
+
 
         if record.check_out_time:
 
@@ -99,6 +103,13 @@ def monthly_report(
             late_count += 1
 
             late_minutes += record.late_minutes
+
+
+
+        total_overtime += record.overtime_minutes
+
+        total_missing += record.missing_minutes
+
 
 
 
@@ -155,7 +166,13 @@ def monthly_report(
         late_minutes,
 
         "izin_gunu":
-        leave_days
+        leave_days,
+
+        "fazla_mesai_dakika":
+        total_overtime,
+
+        "eksik_mesai_dakika":
+        total_missing
 
     }
 
@@ -179,6 +196,7 @@ def monthly_excel_report(
     user = db.query(User).filter(
         User.id == user_id
     ).first()
+
 
 
     if not user:
@@ -230,12 +248,23 @@ def monthly_excel_report(
 
 
     ws.append([
+
         "Personel",
+
         "Giriş",
+
         "Çıkış",
+
         "Çalışma Süresi",
+
         "Geç Mi?",
-        "Geç Dakika"
+
+        "Geç Dakika",
+
+        "Fazla Mesai(dk)",
+
+        "Eksik Mesai(dk)"
+
     ])
 
 
@@ -249,10 +278,12 @@ def monthly_excel_report(
 
         if record.check_out_time:
 
+
             seconds = (
                 record.check_out_time -
                 record.check_in_time
             ).total_seconds()
+
 
 
             hours = int(
@@ -263,6 +294,7 @@ def monthly_excel_report(
             minutes = int(
                 (seconds % 3600) // 60
             )
+
 
 
             duration = (
@@ -284,7 +316,11 @@ def monthly_excel_report(
 
             "Evet" if record.late else "Hayır",
 
-            record.late_minutes
+            record.late_minutes,
+
+            record.overtime_minutes,
+
+            record.missing_minutes
 
         ])
 

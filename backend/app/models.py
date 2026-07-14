@@ -99,6 +99,27 @@ class Attendance(Base):
     )
 
 
+    # Fazla mesai
+
+    overtime_minutes = Column(
+        Integer,
+        default=0
+    )
+
+
+    # Eksik çalışma
+
+    missing_minutes = Column(
+        Integer,
+        default=0
+    )
+
+missing_minutes = Column(
+    Integer,
+    default=0
+)
+
+
 
 class Leave(Base):
 

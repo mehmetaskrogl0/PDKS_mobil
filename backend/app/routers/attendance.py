@@ -15,7 +15,6 @@ router = APIRouter(
 )
 
 
-
 # =========================
 # MESAFE HESAPLAMA
 # =========================
@@ -273,6 +272,37 @@ def check_out(
 
 
 
+    # =========================
+    # MESAİ HESAPLAMA
+    # =========================
+
+    total_minutes = int(
+        duration.total_seconds() / 60
+    )
+
+
+    normal_minutes = 480
+
+
+    if total_minutes > normal_minutes:
+
+        attendance.overtime_minutes = (
+            total_minutes - normal_minutes
+        )
+
+        attendance.missing_minutes = 0
+
+
+    else:
+
+        attendance.missing_minutes = (
+            normal_minutes - total_minutes
+        )
+
+        attendance.overtime_minutes = 0
+
+
+
     db.commit()
 
     db.refresh(attendance)
@@ -285,9 +315,16 @@ def check_out(
 
         "work_duration":str(duration),
 
+        "overtime_minutes":
+        attendance.overtime_minutes,
+
+        "missing_minutes":
+        attendance.missing_minutes,
+
         "distance":round(distance,2)
 
     }
+
 
 # =========================
 # PERSONEL KENDİ KAYITLARI
@@ -359,7 +396,13 @@ def my_attendance(
 
             "late": record.late,
 
-            "late_minutes": record.late_minutes
+            "late_minutes": record.late_minutes,
+
+            "overtime_minutes":
+            record.overtime_minutes,
+
+            "missing_minutes":
+            record.missing_minutes
 
         })
 
@@ -425,7 +468,13 @@ def get_all_attendance(
             attendance.late,
 
             "late_minutes":
-            attendance.late_minutes
+            attendance.late_minutes,
+
+            "overtime_minutes":
+            attendance.overtime_minutes,
+
+            "missing_minutes":
+            attendance.missing_minutes
 
         })
 
@@ -562,7 +611,13 @@ def get_today_attendance(
             attendance.late,
 
             "late_minutes":
-            attendance.late_minutes
+            attendance.late_minutes,
+
+            "overtime_minutes":
+            attendance.overtime_minutes,
+
+            "missing_minutes":
+            attendance.missing_minutes
 
         })
 
@@ -731,7 +786,13 @@ def get_user_attendance(
             attendance.late,
 
             "late_minutes":
-            attendance.late_minutes
+            attendance.late_minutes,
+
+            "overtime_minutes":
+            attendance.overtime_minutes,
+
+            "missing_minutes":
+            attendance.missing_minutes
 
         })
 
