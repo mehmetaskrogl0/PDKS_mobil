@@ -8,6 +8,7 @@ from .routers import attendance
 from .routers import workplace
 from app.routers import dashboard
 from .routers import leave
+from .routers import reports
 
 app = FastAPI(
     title="PDKS API",
@@ -25,7 +26,7 @@ app.include_router(attendance.router)
 app.include_router(workplace.router)
 app.include_router(dashboard.router)
 app.include_router(leave.router)
-
+app.include_router(reports.router)
 
 @app.get("/")
 def home():

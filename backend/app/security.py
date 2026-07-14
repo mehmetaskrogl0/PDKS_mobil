@@ -5,6 +5,8 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 
+from passlib.context import CryptContext
+
 from .database import get_db
 from .models import User
 
@@ -20,8 +22,35 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
-
 oauth2_scheme = HTTPBearer()
+
+
+
+# =========================
+# PASSWORD HASH
+# =========================
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto"
+)
+
+
+def hash_password(password: str):
+
+    return pwd_context.hash(password)
+
+
+
+def verify_password(
+    plain_password: str,
+    hashed_password: str
+):
+
+    return pwd_context.verify(
+        plain_password,
+        hashed_password
+    )
 
 
 
