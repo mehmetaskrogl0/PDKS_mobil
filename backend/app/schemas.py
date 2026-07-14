@@ -15,6 +15,17 @@ class UserCreate(BaseModel):
 
 
 
+class AdminUserCreate(BaseModel):
+
+    name: str
+    surname: str
+    email: str
+    password: str
+    role: str = "employee"
+    workplace_id: int | None = None
+
+
+
 class UserLogin(BaseModel):
 
     email: str
@@ -27,6 +38,14 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class UserUpdate(BaseModel):
+
+    name: str | None = None
+    surname: str | None = None
+    email: str | None = None
+    password: str | None = None
+    role: str | None = None
+    workplace_id: int | None = None
 
 
 # =========================
@@ -94,3 +113,5 @@ class LeaveResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+    
