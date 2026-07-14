@@ -3,8 +3,22 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import User, Workplace
-from ..security import get_current_user, admin_required, hash_password
-from ..schemas import AdminUserCreate, UserUpdate
+from ..security import (
+    get_current_user,
+    admin_required,
+    hash_password
+)
+
+from ..logger import create_log
+
+from ..schemas import (
+    AdminUserCreate,
+    UserUpdate,
+    UserResponse,
+    UserActionResponse
+)
+
+
 
 router = APIRouter(
     prefix="/users",
@@ -12,218 +26,525 @@ router = APIRouter(
 )
 
 
-# Kendi bilgilerini getir
-@router.get("/me")
+
+
+
+# =========================
+# KENDİ BİLGİLERİNİ GETİR
+# =========================
+
+
+@router.get(
+    "/me",
+    response_model=UserResponse
+)
 def get_me(
+
     current_user: User = Depends(get_current_user)
+
 ):
 
-    return {
-        "id": current_user.id,
-        "name": current_user.name,
-        "surname": current_user.surname,
-        "email": current_user.email,
-        "role": current_user.role,
-        "workplace_id": current_user.workplace_id
-    }
+    return current_user
 
 
 
-# Tüm kullanıcıları listele (Admin)
-@router.get("/")
+
+
+
+# =========================
+# TÜM KULLANICILAR
+# =========================
+
+
+@router.get(
+    "/",
+    response_model=list[UserResponse]
+)
 def get_users(
+
     db: Session = Depends(get_db),
+
     admin: User = Depends(admin_required)
+
 ):
 
-    users = db.query(User).all()
 
-    return users
-
+    return db.query(User).all()
 
 
-# Tek kullanıcı getir (Admin)
-@router.get("/{user_id}")
+
+
+
+
+
+# =========================
+# TEK KULLANICI
+# =========================
+
+
+@router.get(
+    "/{user_id}",
+    response_model=UserResponse
+)
 def get_user(
-    user_id: int,
-    db: Session = Depends(get_db),
-    admin: User = Depends(admin_required)
+
+    user_id:int,
+
+    db:Session = Depends(get_db),
+
+    admin:User = Depends(admin_required)
+
 ):
+
 
     user = db.query(User).filter(
+
         User.id == user_id
+
     ).first()
 
 
+
     if not user:
+
         raise HTTPException(
+
             status_code=404,
+
             detail="Kullanıcı bulunamadı"
+
         )
+
 
 
     return user
 
 
 
-# Yeni kullanıcı oluştur (Admin)
-@router.post("/")
+
+
+
+
+
+# =========================
+# KULLANICI OLUŞTUR
+# =========================
+
+
+@router.post(
+    "/",
+    response_model=UserActionResponse
+)
 def create_user(
-    user_data: AdminUserCreate,
-    db: Session = Depends(get_db),
-    admin: User = Depends(admin_required)
+
+    user_data:AdminUserCreate,
+
+    db:Session = Depends(get_db),
+
+    admin:User = Depends(admin_required)
+
 ):
 
-    existing_user = db.query(User).filter(
+
+    existing = db.query(User).filter(
+
         User.email == user_data.email
+
     ).first()
 
 
-    if existing_user:
+
+    if existing:
+
         raise HTTPException(
+
             status_code=400,
+
             detail="Bu email zaten kayıtlı"
+
         )
 
 
+
+
     new_user = User(
+
         name=user_data.name,
+
         surname=user_data.surname,
+
         email=user_data.email,
-        password=hash_password(user_data.password),
+
+        password=hash_password(
+            user_data.password
+        ),
+
         role=user_data.role,
+
         workplace_id=user_data.workplace_id
+
     )
 
 
+
     db.add(new_user)
+
     db.commit()
+
     db.refresh(new_user)
 
 
+
+    create_log(
+
+        db,
+
+        admin.id,
+
+        "USER_CREATE",
+
+        f"{new_user.name} {new_user.surname} oluşturuldu"
+
+    )
+
+
+
     return {
-        "message": "Kullanıcı oluşturuldu",
-        "user_id": new_user.id
+
+        "message":
+        "Kullanıcı oluşturuldu",
+
+        "user_id":
+        new_user.id
+
     }
 
 
 
-# Kullanıcıyı iş yerine ata (Admin)
-@router.put("/{user_id}/workplace")
+
+
+
+
+
+
+# =========================
+# İŞ YERİ ATAMA
+# =========================
+
+
+@router.put(
+    "/{user_id}/workplace",
+    response_model=UserActionResponse
+)
 def assign_workplace(
-    user_id: int,
-    workplace_id: int,
-    db: Session = Depends(get_db),
-    admin: User = Depends(admin_required)
+
+    user_id:int,
+
+    workplace_id:int,
+
+    db:Session = Depends(get_db),
+
+    admin:User = Depends(admin_required)
+
 ):
 
+
     user = db.query(User).filter(
+
         User.id == user_id
+
     ).first()
+
 
 
     if not user:
+
         raise HTTPException(
+
             status_code=404,
+
             detail="Kullanıcı bulunamadı"
+
         )
+
 
 
     workplace = db.query(Workplace).filter(
+
         Workplace.id == workplace_id
+
     ).first()
 
 
+
     if not workplace:
+
         raise HTTPException(
+
             status_code=404,
+
             detail="İşyeri bulunamadı"
+
         )
+
 
 
     user.workplace_id = workplace_id
 
+
+
     db.commit()
-    db.refresh(user)
+
+
+
+    create_log(
+
+        db,
+
+        admin.id,
+
+        "WORKPLACE_ASSIGN",
+
+        f"{user.name} {user.surname} iş yerine atandı"
+
+    )
+
 
 
     return {
-        "message": "Kullanıcı iş yerine atandı"
+
+        "message":
+        "Kullanıcı iş yerine atandı",
+
+        "user_id":
+        user.id
+
     }
 
 
-@router.put("/{user_id}")
+
+
+
+
+
+
+
+# =========================
+# KULLANICI GÜNCELLE
+# =========================
+
+
+@router.put(
+    "/{user_id}",
+    response_model=UserActionResponse
+)
 def update_user(
-    user_id: int,
-    user_data: UserUpdate,
-    db: Session = Depends(get_db),
-    admin: User = Depends(admin_required)
+
+    user_id:int,
+
+    user_data:UserUpdate,
+
+    db:Session = Depends(get_db),
+
+    admin:User = Depends(admin_required)
+
 ):
 
+
     user = db.query(User).filter(
+
         User.id == user_id
+
     ).first()
 
 
+
     if not user:
+
         raise HTTPException(
+
             status_code=404,
+
             detail="Kullanıcı bulunamadı"
+
         )
 
 
-    if user_data.name:
-        user.name = user_data.name
 
-    if user_data.surname:
-        user.surname = user_data.surname
 
-    if user_data.email:
-        user.email = user_data.email
+    data = user_data.dict(
+        exclude_unset=True
+    )
 
-    if user_data.role:
-        user.role = user_data.role
 
-    if user_data.workplace_id:
-        user.workplace_id = user_data.workplace_id
 
-    if user_data.password:
+    if "email" in data:
+
+
+        exists = db.query(User).filter(
+
+            User.email == data["email"],
+
+            User.id != user_id
+
+        ).first()
+
+
+
+        if exists:
+
+            raise HTTPException(
+
+                status_code=400,
+
+                detail="Email kullanılıyor"
+
+            )
+
+
+
+
+    if "password" in data:
+
         user.password = hash_password(
-            user_data.password
+
+            data["password"]
+
         )
+
+        del data["password"]
+
+
+
+
+    for field,value in data.items():
+
+        setattr(
+
+            user,
+
+            field,
+
+            value
+
+        )
+
 
 
     db.commit()
+
     db.refresh(user)
 
 
+
+    create_log(
+
+        db,
+
+        admin.id,
+
+        "USER_UPDATE",
+
+        f"{user.name} {user.surname} güncellendi"
+
+    )
+
+
+
     return {
-        "message": "Kullanıcı güncellendi"
+
+        "message":
+        "Kullanıcı güncellendi",
+
+        "user_id":
+        user.id
+
     }
-# Kullanıcı sil (Admin)
-@router.delete("/{user_id}")
+
+
+
+
+
+
+
+
+
+# =========================
+# KULLANICI SİL
+# =========================
+
+
+@router.delete(
+    "/{user_id}",
+    response_model=UserActionResponse
+)
 def delete_user(
-    user_id: int,
-    db: Session = Depends(get_db),
-    admin: User = Depends(admin_required)
+
+    user_id:int,
+
+    db:Session = Depends(get_db),
+
+    admin:User = Depends(admin_required)
+
 ):
 
+
     user = db.query(User).filter(
+
         User.id == user_id
+
     ).first()
 
 
+
     if not user:
+
         raise HTTPException(
+
             status_code=404,
+
             detail="Kullanıcı bulunamadı"
+
         )
+
+
+
+    username = (
+        user.name 
+        + 
+        " "
+        + 
+        user.surname
+    )
+
 
 
     db.delete(user)
+
     db.commit()
 
 
+
+    create_log(
+
+        db,
+
+        admin.id,
+
+        "USER_DELETE",
+
+        f"{username} silindi"
+
+    )
+
+
+
     return {
-        "message": "Kullanıcı silindi"
+
+        "message":
+        "Kullanıcı silindi",
+
+        "user_id":
+        user_id
+
     }

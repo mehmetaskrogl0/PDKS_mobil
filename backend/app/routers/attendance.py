@@ -1,11 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from math import radians, sin, cos, sqrt, atan2
 from datetime import datetime
 
 from ..database import get_db
 from ..models import Attendance, Workplace, User
-from ..schemas import AttendanceCreate
+from ..schemas import (
+    AttendanceCreate,
+    AttendanceCheckResponse,
+    AttendanceHistoryResponse,
+    AdminAttendanceResponse,
+    LateAttendanceResponse
+)
 from ..security import get_current_user, admin_required
 
 
@@ -13,6 +20,7 @@ router = APIRouter(
     prefix="/attendance",
     tags=["Attendance"]
 )
+
 
 
 # =========================
@@ -28,14 +36,17 @@ def calculate_distance(
 
     R = 6371000
 
+
     lat1 = radians(lat1)
     lon1 = radians(lon1)
 
     lat2 = radians(lat2)
     lon2 = radians(lon2)
 
+
     dlat = lat2 - lat1
     dlon = lon2 - lon1
+
 
     a = (
         sin(dlat / 2) ** 2
@@ -47,12 +58,16 @@ def calculate_distance(
         sin(dlon / 2) ** 2
     )
 
+
     c = 2 * atan2(
         sqrt(a),
-        sqrt(1 - a)
+        sqrt(1-a)
     )
 
-    return R * c
+
+    return R*c
+
+
 
 
 
@@ -60,82 +75,148 @@ def calculate_distance(
 # CHECK-IN
 # =========================
 
-@router.post("/check-in")
+
+@router.post(
+    "/check-in",
+    response_model=AttendanceCheckResponse
+)
 def check_in(
+
     data: AttendanceCreate,
+
     db: Session = Depends(get_db),
+
     current_user: User = Depends(get_current_user)
+
 ):
 
-    active_attendance = db.query(Attendance).filter(
+
+    today = datetime.now().date()
+
+
+
+    active_attendance = db.query(
+        Attendance
+    ).filter(
+
         Attendance.user_id == current_user.id,
-        Attendance.check_out_time == None
+
+        Attendance.check_out_time == None,
+
+        func.date(
+            Attendance.check_in_time
+        ) == today
+
     ).first()
 
 
+
     if active_attendance:
+
         raise HTTPException(
             status_code=400,
             detail="Zaten aktif girişiniz var."
         )
 
 
-    workplace = db.query(Workplace).filter(
+
+
+    workplace = db.query(
+        Workplace
+    ).filter(
+
         Workplace.id == current_user.workplace_id
+
     ).first()
 
 
+
     if not workplace:
+
         raise HTTPException(
             status_code=404,
             detail="İş yeri bulunamadı."
         )
 
 
+
+
     distance = calculate_distance(
+
         data.latitude,
+
         data.longitude,
+
         workplace.latitude,
+
         workplace.longitude
+
     )
 
 
+
     if distance > workplace.radius:
+
         raise HTTPException(
+
             status_code=400,
+
             detail=f"İşyeri dışında. Mesafe: {int(distance)} metre"
+
         )
+
+
 
 
     now = datetime.now()
 
+
     late = False
+
     late_minutes = 0
+
 
 
     if workplace.start_time:
 
+
         work_start = datetime.strptime(
+
             workplace.start_time,
+
             "%H:%M"
+
         ).time()
+
 
 
         if now.time() > work_start:
 
+
             late = True
 
+
+
             start_datetime = datetime.combine(
+
                 now.date(),
+
                 work_start
+
             )
+
 
 
             late_minutes = int(
+
                 (
-                    now - start_datetime
-                ).total_seconds() / 60
+                    now-start_datetime
+                ).total_seconds()/60
+
             )
+
+
+
 
 
     attendance = Attendance(
@@ -149,7 +230,9 @@ def check_in(
         late=late,
 
         late_minutes=late_minutes
+
     )
+
 
 
     db.add(attendance)
@@ -159,38 +242,57 @@ def check_in(
     db.refresh(attendance)
 
 
+
     return {
 
-        "message": "Giriş başarılı",
 
-        "distance": round(distance,2),
+        "message":
+            "Giriş başarılı",
 
-        "workplace": workplace.name,
 
-        "late": late,
+        "distance":
+            round(distance,2),
 
-        "late_minutes": late_minutes
+
+        "workplace":
+            workplace.name,
+
+
+        "late":
+            late,
+
+
+        "late_minutes":
+            late_minutes
 
     }
-
-
-
-
 
 # =========================
 # CHECK-OUT
 # =========================
 
-@router.post("/check-out")
+
+@router.post(
+    "/check-out",
+    response_model=AttendanceCheckResponse
+)
 def check_out(
+
     data: AttendanceCreate,
+
     db: Session = Depends(get_db),
+
     current_user: User = Depends(get_current_user)
+
 ):
 
 
-    workplace = db.query(Workplace).filter(
+    workplace = db.query(
+        Workplace
+    ).filter(
+
         Workplace.id == current_user.workplace_id
+
     ).first()
 
 
@@ -198,9 +300,13 @@ def check_out(
     if not workplace:
 
         raise HTTPException(
+
             status_code=404,
+
             detail="İş yeri bulunamadı."
+
         )
+
 
 
 
@@ -230,13 +336,18 @@ def check_out(
 
 
 
-    attendance = db.query(Attendance).filter(
+
+
+    attendance = db.query(
+        Attendance
+    ).filter(
 
         Attendance.user_id == current_user.id,
 
         Attendance.check_out_time == None
 
     ).first()
+
 
 
 
@@ -252,11 +363,13 @@ def check_out(
 
 
 
+
     attendance.check_out_lat = data.latitude
 
     attendance.check_out_long = data.longitude
 
     attendance.check_out_time = datetime.now()
+
 
 
 
@@ -272,34 +385,44 @@ def check_out(
 
 
 
-    # =========================
-    # MESAİ HESAPLAMA
-    # =========================
 
     total_minutes = int(
-        duration.total_seconds() / 60
+
+        duration.total_seconds()/60
+
     )
+
 
 
     normal_minutes = 480
 
 
+
     if total_minutes > normal_minutes:
 
+
         attendance.overtime_minutes = (
-            total_minutes - normal_minutes
+
+            total_minutes-normal_minutes
+
         )
 
         attendance.missing_minutes = 0
 
 
+
     else:
 
+
         attendance.missing_minutes = (
-            normal_minutes - total_minutes
+
+            normal_minutes-total_minutes
+
         )
 
         attendance.overtime_minutes = 0
+
+
 
 
 
@@ -311,26 +434,37 @@ def check_out(
 
     return {
 
-        "message":"Çıkış başarılı",
 
-        "work_duration":str(duration),
+        "message":
+            "Çıkış başarılı",
+
+
+        "distance":
+            round(distance,2),
+
 
         "overtime_minutes":
-        attendance.overtime_minutes,
+            attendance.overtime_minutes,
+
 
         "missing_minutes":
-        attendance.missing_minutes,
-
-        "distance":round(distance,2)
+            attendance.missing_minutes
 
     }
+
+
+
 
 
 # =========================
 # PERSONEL KENDİ KAYITLARI
 # =========================
 
-@router.get("/my-attendance")
+
+@router.get(
+    "/my-attendance",
+    response_model=list[AttendanceHistoryResponse]
+)
 def my_attendance(
 
     db: Session = Depends(get_db),
@@ -340,7 +474,9 @@ def my_attendance(
 ):
 
 
-    records = db.query(Attendance).filter(
+    records = db.query(
+        Attendance
+    ).filter(
 
         Attendance.user_id == current_user.id
 
@@ -358,6 +494,7 @@ def my_attendance(
         duration = None
 
 
+
         if record.check_out_time:
 
 
@@ -373,38 +510,57 @@ def my_attendance(
 
 
 
-            hours = int(seconds // 3600)
+            hours = int(seconds//3600)
 
             minutes = int(
-                (seconds % 3600) // 60
+
+                (seconds%3600)//60
+
             )
+
 
 
             duration = f"{hours} saat {minutes} dakika"
 
 
 
+
         result.append({
 
-            "id": record.id,
 
-            "check_in": record.check_in_time,
+            "id":
+                record.id,
 
-            "check_out": record.check_out_time,
 
-            "duration": duration,
+            "check_in":
+                record.check_in_time,
 
-            "late": record.late,
 
-            "late_minutes": record.late_minutes,
+            "check_out":
+                record.check_out_time,
+
+
+            "duration":
+                duration,
+
+
+            "late":
+                record.late,
+
+
+            "late_minutes":
+                record.late_minutes,
+
 
             "overtime_minutes":
-            record.overtime_minutes,
+                record.overtime_minutes,
+
 
             "missing_minutes":
-            record.missing_minutes
+                record.missing_minutes
 
         })
+
 
 
     return result
@@ -417,7 +573,11 @@ def my_attendance(
 # ADMIN TÜM KAYITLAR
 # =========================
 
-@router.get("/all")
+
+@router.get(
+    "/all",
+    response_model=list[AdminAttendanceResponse]
+)
 def get_all_attendance(
 
     db: Session = Depends(get_db),
@@ -443,6 +603,7 @@ def get_all_attendance(
 
 
 
+
     result = []
 
 
@@ -453,30 +614,38 @@ def get_all_attendance(
         result.append({
 
             "personel":
-            f"{user.name} {user.surname}",
+                f"{user.name} {user.surname}",
+
 
             "email":
-            user.email,
+                user.email,
+
 
             "check_in":
-            attendance.check_in_time,
+                attendance.check_in_time,
+
 
             "check_out":
-            attendance.check_out_time,
+                attendance.check_out_time,
+
 
             "late":
-            attendance.late,
+                attendance.late,
+
 
             "late_minutes":
-            attendance.late_minutes,
+                attendance.late_minutes,
+
 
             "overtime_minutes":
-            attendance.overtime_minutes,
+                attendance.overtime_minutes,
+
 
             "missing_minutes":
-            attendance.missing_minutes
+                attendance.missing_minutes
 
         })
+
 
 
     return result
@@ -489,7 +658,11 @@ def get_all_attendance(
 # ADMIN GEÇ KALANLAR
 # =========================
 
-@router.get("/late")
+
+@router.get(
+    "/late",
+    response_model=list[LateAttendanceResponse]
+)
 def get_late_attendance(
 
     db: Session = Depends(get_db),
@@ -519,41 +692,47 @@ def get_late_attendance(
 
 
 
+
     result = []
 
 
 
-    for attendance, user in records:
+    for attendance,user in records:
 
 
         result.append({
 
+
             "personel":
-            f"{user.name} {user.surname}",
+                f"{user.name} {user.surname}",
+
 
             "email":
-            user.email,
+                user.email,
+
 
             "check_in":
-            attendance.check_in_time,
+                attendance.check_in_time,
+
 
             "late_minutes":
-            attendance.late_minutes
+                attendance.late_minutes
 
         })
 
 
+
     return result
-
-
-
-
 
 # =========================
 # ADMIN BUGÜNKÜ GİRİŞLER
 # =========================
 
-@router.get("/today")
+
+@router.get(
+    "/today",
+    response_model=list[AdminAttendanceResponse]
+)
 def get_today_attendance(
 
     db: Session = Depends(get_db),
@@ -564,6 +743,7 @@ def get_today_attendance(
 
 
     today = datetime.now().date()
+
 
 
     records = db.query(
@@ -580,9 +760,12 @@ def get_today_attendance(
 
     ).filter(
 
-        Attendance.check_in_time >= today
+        func.date(
+            Attendance.check_in_time
+        ) == today
 
     ).all()
+
 
 
 
@@ -590,36 +773,45 @@ def get_today_attendance(
 
 
 
-    for attendance, user in records:
+    for attendance,user in records:
 
 
         result.append({
 
+
             "personel":
-            f"{user.name} {user.surname}",
+                f"{user.name} {user.surname}",
+
 
             "email":
-            user.email,
+                user.email,
+
 
             "check_in":
-            attendance.check_in_time,
+                attendance.check_in_time,
+
 
             "check_out":
-            attendance.check_out_time,
+                attendance.check_out_time,
+
 
             "late":
-            attendance.late,
+                attendance.late,
+
 
             "late_minutes":
-            attendance.late_minutes,
+                attendance.late_minutes,
+
 
             "overtime_minutes":
-            attendance.overtime_minutes,
+                attendance.overtime_minutes,
+
 
             "missing_minutes":
-            attendance.missing_minutes
+                attendance.missing_minutes
 
         })
+
 
 
     return result
@@ -631,6 +823,7 @@ def get_today_attendance(
 # =========================
 # ADMIN AKTİF ÇALIŞANLAR
 # =========================
+
 
 @router.get("/active")
 def get_active_attendance(
@@ -662,25 +855,30 @@ def get_active_attendance(
 
 
 
+
     result = []
 
 
 
-    for attendance, user in records:
+    for attendance,user in records:
 
 
         result.append({
 
+
             "personel":
-            f"{user.name} {user.surname}",
+                f"{user.name} {user.surname}",
+
 
             "email":
-            user.email,
+                user.email,
+
 
             "check_in":
-            attendance.check_in_time
+                attendance.check_in_time
 
         })
+
 
 
     return result
@@ -692,6 +890,7 @@ def get_active_attendance(
 # =========================
 # ADMIN PERSONEL GEÇMİŞİ
 # =========================
+
 
 @router.get("/user/{user_id}")
 def get_user_attendance(
@@ -713,7 +912,9 @@ def get_user_attendance(
 
 
 
+
     if not user:
+
 
         raise HTTPException(
 
@@ -725,11 +926,23 @@ def get_user_attendance(
 
 
 
-    records = db.query(Attendance).filter(
+
+
+    records = db.query(
+
+        Attendance
+
+    ).filter(
 
         Attendance.user_id == user_id
 
+    ).order_by(
+
+        Attendance.check_in_time.desc()
+
     ).all()
+
+
 
 
 
@@ -740,7 +953,9 @@ def get_user_attendance(
     for attendance in records:
 
 
+
         duration = None
+
 
 
         if attendance.check_out_time:
@@ -758,11 +973,16 @@ def get_user_attendance(
 
 
 
-            hours = int(seconds // 3600)
+            hours = int(
+
+                seconds // 3600
+
+            )
+
 
             minutes = int(
 
-                (seconds % 3600) // 60
+                (seconds % 3600)//60
 
             )
 
@@ -771,39 +991,61 @@ def get_user_attendance(
 
 
 
+
+
         result.append({
 
+
             "check_in":
-            attendance.check_in_time,
+
+                attendance.check_in_time,
+
 
             "check_out":
-            attendance.check_out_time,
+
+                attendance.check_out_time,
+
 
             "duration":
-            duration,
+
+                duration,
+
 
             "late":
-            attendance.late,
+
+                attendance.late,
+
 
             "late_minutes":
-            attendance.late_minutes,
+
+                attendance.late_minutes,
+
 
             "overtime_minutes":
-            attendance.overtime_minutes,
+
+                attendance.overtime_minutes,
+
 
             "missing_minutes":
-            attendance.missing_minutes
+
+                attendance.missing_minutes
 
         })
 
 
 
+
+
     return {
 
+
         "personel":
-        f"{user.name} {user.surname}",
+
+            f"{user.name} {user.surname}",
+
 
         "records":
-        result
+
+            result
 
     }

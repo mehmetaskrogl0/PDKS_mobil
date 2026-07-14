@@ -8,7 +8,7 @@ from io import BytesIO
 from openpyxl import Workbook
 
 from ..database import get_db
-from ..models import Attendance, User, Leave
+from ..models import Attendance, User, Leave, Workplace
 from ..security import admin_required
 
 
@@ -198,13 +198,11 @@ def monthly_excel_report(
     ).first()
 
 
-
     if not user:
         raise HTTPException(
             status_code=404,
             detail="Personel bulunamadı"
         )
-
 
 
     start_date = datetime(
@@ -230,43 +228,192 @@ def monthly_excel_report(
     )
 
 
+    records = db.query(
+        Attendance
+    ).filter(
 
-    records = db.query(Attendance).filter(
         Attendance.user_id == user_id,
+
         Attendance.check_in_time >= start_date,
+
         Attendance.check_in_time <= end_date
+
     ).all()
 
 
 
+    # =========================
+    # ÖZET HESAPLAMA
+    # =========================
+
+
+    total_seconds = 0
+
+    late_count = 0
+
+    late_minutes = 0
+
+    overtime = 0
+
+    missing = 0
+
+
+
+    for record in records:
+
+
+        if record.check_out_time:
+
+            total_seconds += (
+
+                record.check_out_time -
+
+                record.check_in_time
+
+            ).total_seconds()
+
+
+
+        if record.late:
+
+            late_count += 1
+
+            late_minutes += record.late_minutes
+
+
+
+        overtime += record.overtime_minutes
+
+        missing += record.missing_minutes
+
+
+
+    hours = int(
+        total_seconds // 3600
+    )
+
+
+    minutes = int(
+        (total_seconds % 3600)//60
+    )
+
+
+
+
+    # =========================
+    # EXCEL OLUŞTUR
+    # =========================
+
+
     wb = Workbook()
 
+
     ws = wb.active
+
 
     ws.title = "Aylık Rapor"
 
 
 
-    ws.append([
+    ws.append(
+        [
+            "PDKS AYLIK PERSONEL RAPORU"
+        ]
+    )
 
-        "Personel",
 
-        "Giriş",
+    ws.append([])
 
-        "Çıkış",
 
-        "Çalışma Süresi",
+    ws.append(
+        [
+            "Personel",
+            f"{user.name} {user.surname}"
+        ]
+    )
 
-        "Geç Mi?",
 
-        "Geç Dakika",
+    ws.append(
+        [
+            "Dönem",
+            f"{year}-{month:02}"
+        ]
+    )
 
-        "Fazla Mesai(dk)",
 
-        "Eksik Mesai(dk)"
+    ws.append([])
 
-    ])
 
+    ws.append(
+        [
+            "ÖZET"
+        ]
+    )
+
+
+    ws.append(
+        [
+            "Toplam Çalışma",
+            f"{hours} saat {minutes} dakika"
+        ]
+    )
+
+
+    ws.append(
+        [
+            "Çalışma Günü",
+            len(records)
+        ]
+    )
+
+
+    ws.append(
+        [
+            "Geç Kalma Sayısı",
+            late_count
+        ]
+    )
+
+
+    ws.append(
+        [
+            "Geç Kalma Dakika",
+            late_minutes
+        ]
+    )
+
+
+    ws.append(
+        [
+            "Fazla Mesai Dakika",
+            overtime
+        ]
+    )
+
+
+    ws.append(
+        [
+            "Eksik Mesai Dakika",
+            missing
+        ]
+    )
+
+
+
+    ws.append([])
+
+
+    ws.append(
+        [
+            "Giriş",
+            "Çıkış",
+            "Süre",
+            "Geç Mi?",
+            "Geç Dakika",
+            "Fazla Mesai",
+            "Eksik Mesai"
+        ]
+    )
 
 
 
@@ -280,56 +427,55 @@ def monthly_excel_report(
 
 
             seconds = (
+
                 record.check_out_time -
+
                 record.check_in_time
+
             ).total_seconds()
 
 
 
-            hours = int(
-                seconds // 3600
+            h = int(seconds//3600)
+
+
+            m = int(
+                (seconds%3600)//60
             )
 
 
-            minutes = int(
-                (seconds % 3600) // 60
-            )
+            duration = f"{h} saat {m} dakika"
 
 
 
-            duration = (
-                f"{hours} saat "
-                f"{minutes} dakika"
-            )
 
+        ws.append(
+            [
 
+                record.check_in_time,
 
-        ws.append([
+                record.check_out_time,
 
-            f"{user.name} {user.surname}",
+                duration,
 
-            record.check_in_time,
+                "Evet" if record.late else "Hayır",
 
-            record.check_out_time,
+                record.late_minutes,
 
-            duration,
+                record.overtime_minutes,
 
-            "Evet" if record.late else "Hayır",
+                record.missing_minutes
 
-            record.late_minutes,
-
-            record.overtime_minutes,
-
-            record.missing_minutes
-
-        ])
-
+            ]
+        )
 
 
 
     file = BytesIO()
 
+
     wb.save(file)
+
 
     file.seek(0)
 
@@ -342,11 +488,403 @@ def monthly_excel_report(
         media_type=
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
+
         headers={
 
             "Content-Disposition":
-            f"attachment; filename={user.name}_rapor.xlsx"
+
+            f"attachment; filename={user.name}_aylik_rapor.xlsx"
 
         }
 
     )
+
+
+# =========================
+# TÜM PERSONEL AYLIK RAPOR
+# =========================
+
+
+@router.get("/monthly/all")
+def all_monthly_report(
+
+    year:int,
+
+    month:int,
+
+    db:Session = Depends(get_db),
+
+    admin:User = Depends(admin_required)
+
+):
+
+
+    users = db.query(User).filter(
+        User.role == "employee"
+    ).all()
+
+
+
+    result = []
+
+
+
+    start_date = datetime(
+        year,
+        month,
+        1
+    )
+
+
+
+    last_day = calendar.monthrange(
+        year,
+        month
+    )[1]
+
+
+
+    end_date = datetime(
+        year,
+        month,
+        last_day,
+        23,
+        59,
+        59
+    )
+
+
+
+
+    for user in users:
+
+
+        records = db.query(
+            Attendance
+        ).filter(
+
+            Attendance.user_id == user.id,
+
+            Attendance.check_in_time >= start_date,
+
+            Attendance.check_in_time <= end_date
+
+        ).all()
+
+
+
+        total_seconds = 0
+
+        overtime = 0
+
+        missing = 0
+
+        late = 0
+
+
+
+
+        for record in records:
+
+
+            if record.check_out_time:
+
+
+                total_seconds += (
+
+                    record.check_out_time
+
+                    -
+
+                    record.check_in_time
+
+                ).total_seconds()
+
+
+
+            late += record.late_minutes
+
+            overtime += record.overtime_minutes
+
+            missing += record.missing_minutes
+
+
+
+
+
+        hours = int(
+            total_seconds // 3600
+        )
+
+
+
+        minutes = int(
+            (total_seconds % 3600)//60
+        )
+
+
+
+
+        result.append({
+
+
+            "personel":
+
+                f"{user.name} {user.surname}",
+
+
+
+            "calisma_gunu":
+
+                len(records),
+
+
+
+            "toplam_saat":
+
+                f"{hours} saat {minutes} dakika",
+
+
+
+            "gecikme_dakika":
+
+                late,
+
+
+
+            "fazla_mesai":
+
+                overtime,
+
+
+
+            "eksik_mesai":
+
+                missing
+
+        })
+
+
+
+
+    return result
+
+
+# =========================
+# İŞYERİ BAZLI AYLIK RAPOR
+# =========================
+
+
+@router.get("/workplace/{workplace_id}")
+def workplace_monthly_report(
+
+    workplace_id:int,
+
+    year:int,
+
+    month:int,
+
+    db:Session = Depends(get_db),
+
+    admin:User = Depends(admin_required)
+
+):
+
+
+    workplace = db.query(Workplace).filter(
+
+        Workplace.id == workplace_id
+
+    ).first()
+
+
+
+    if not workplace:
+
+        raise HTTPException(
+
+            status_code=404,
+
+            detail="İşyeri bulunamadı"
+
+        )
+
+
+
+
+    users = db.query(User).filter(
+
+        User.workplace_id == workplace_id,
+
+        User.role == "employee"
+
+    ).all()
+
+
+
+    start_date = datetime(
+
+        year,
+
+        month,
+
+        1
+
+    )
+
+
+
+    last_day = calendar.monthrange(
+
+        year,
+
+        month
+
+    )[1]
+
+
+
+    end_date = datetime(
+
+        year,
+
+        month,
+
+        last_day,
+
+        23,
+
+        59,
+
+        59
+
+    )
+
+
+
+
+    result = []
+
+
+
+    for user in users:
+
+
+        records = db.query(
+
+            Attendance
+
+        ).filter(
+
+            Attendance.user_id == user.id,
+
+            Attendance.check_in_time >= start_date,
+
+            Attendance.check_in_time <= end_date
+
+        ).all()
+
+
+
+        total_seconds = 0
+
+        overtime = 0
+
+        missing = 0
+
+        late = 0
+
+
+
+
+        for record in records:
+
+
+            if record.check_out_time:
+
+
+                total_seconds += (
+
+                    record.check_out_time
+
+                    -
+
+                    record.check_in_time
+
+                ).total_seconds()
+
+
+
+            overtime += record.overtime_minutes
+
+            missing += record.missing_minutes
+
+            late += record.late_minutes
+
+
+
+
+        hours = int(
+
+            total_seconds // 3600
+
+        )
+
+
+        minutes = int(
+
+            (total_seconds % 3600)//60
+
+        )
+
+
+
+        result.append({
+
+
+            "personel":
+
+                f"{user.name} {user.surname}",
+
+
+
+            "workplace":
+
+                workplace.name,
+
+
+
+            "calisma_gunu":
+
+                len(records),
+
+
+
+            "toplam_saat":
+
+                f"{hours} saat {minutes} dakika",
+
+
+
+            "gecikme_dakika":
+
+                late,
+
+
+
+            "fazla_mesai":
+
+                overtime,
+
+
+
+            "eksik_mesai":
+
+                missing
+
+        })
+
+
+
+
+    return result
