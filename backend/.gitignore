@@ -1,0 +1,14 @@
+# Python sanal ortamları (Tüm alt klasörler dahil)
+**/venv/
+**/ENV/
+**/env/
+**/.venv/
+
+# Python geçici derleme dosyaları
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+
+# Ortam değişkenleri (Veritabanı şifreleri vb.)
+.env
