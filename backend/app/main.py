@@ -9,6 +9,7 @@ from .routers import workplace
 from app.routers import dashboard
 from .routers import leave
 from .routers import reports
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="PDKS API",
@@ -16,7 +17,18 @@ app = FastAPI(
     version="1.0"
 )
 
+app = FastAPI()
 
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 Base.metadata.create_all(bind=engine)
 
 
