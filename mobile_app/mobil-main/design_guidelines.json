@@ -1,0 +1,154 @@
+{
+  "app_name": "Atlas PDKS",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "A formal, high-trust enterprise attendance dashboard anchored by crisp white surfaces, functional blue accents, and precise monospace data.",
+  "color": {
+    "surface": "#FFFFFF",
+    "onSurface": "#111827",
+    "surfaceSecondary": "#F4F6F9",
+    "onSurfaceSecondary": "#4B5563",
+    "surfaceTertiary": "#E8EEFF",
+    "onSurfaceTertiary": "#2E5BFF",
+    "surfaceInverse": "#111827",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#2E5BFF",
+    "brandPrimary": "#2E5BFF",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#1A3BCC",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#E8EEFF",
+    "onBrandTertiary": "#2E5BFF",
+    "success": "#34C759",
+    "onSuccess": "#FFFFFF",
+    "warning": "#F59E0B",
+    "onWarning": "#FFFFFF",
+    "error": "#FF3B30",
+    "onError": "#FFFFFF",
+    "info": "#32ADE6",
+    "onInfo": "#FFFFFF",
+    "border": "#E5E7EB",
+    "borderStrong": "#D1D5DB",
+    "divider": "#F3F4F6"
+  },
+  "typography": {
+    "displayFontFamily": "JetBrains Mono",
+    "textFontFamily": "Plus Jakarta Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous padding around content. Use md (12) and lg (16) for component margins. Avoid dense layouts.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "1",
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": "true",
+    "do's": [
+      "Use glass strictly for the bottom tab bar and sticky headers when content scrolls behind them."
+    ],
+    "dont's": [
+      "Do not use glass on data cards, stat containers, or action buttons. They must remain solid for enterprise legibility."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Employee Dashboard",
+      "purpose": "Primary workspace for employees to log attendance, check hours, and see recent location-verified activities.",
+      "states": {
+        "loading": "Centered brand-colored spinner with 'Konum ve bilgiler yükleniyor...' text.",
+        "empty": "Should not be empty, defaults to zero-state stats if first day.",
+        "error": "Full screen error with 'Bağlantı Hatası' and retry button."
+      },
+      "layout": "1. Sticky Header: Safe-area aware, App Logo (left), User Avatar chip (right).\n2. Greeting Card: 'Merhaba, [Name]' + Role + Today's shift info.\n3. Primary Action: Large circular brandPrimary 'Giriş Yap / Çıkış Yap' button centered. Subtitle 'Konum kaydı ile'.\n4. GPS Status: Text showing GPS accuracy (e.g., 'Doğruluk: 5m'). If failed, show a yellow warning banner 'Konum doğrulanamadı' with an icon.\n5. Stats Container: surfaceTertiary (soft blue) rounded 20px container with 3 columns inside (Bugün, Hafta, Vardiya planı) using displayFontFamily (JetBrains Mono) for the numbers.\n6. Recent Activity ('Son Hareketler'): List items showing Giriş (location/duration), Ara mola, Giriş talebi with pill status badges (Green Onaylandı, Amber Beklemede, Red Reddedildi).\n7. Last Location ('Son Konum'): Card at the bottom showing map/location data."
+    },
+    {
+      "name": "Employee History",
+      "purpose": "View past attendance records and monthly summaries.",
+      "states": {
+        "loading": "Skeleton rows for attendance logs.",
+        "empty": "Calendar icon + 'Henüz kayıt bulunmuyor.'",
+        "error": "Error message with retry button."
+      },
+      "layout": "Calendar strip at top to select dates, followed by a detailed list of clock-ins and clock-outs for the selected day, including total hours calculated."
+    },
+    {
+      "name": "Requests & Modals",
+      "purpose": "Submit manual entry requests or break requests.",
+      "states": {
+        "loading": "Spinner during submission.",
+        "empty": "N/A",
+        "error": "Form validation error states below inputs."
+      },
+      "layout": "Bottom sheets for 'Giriş Talebi' (Manual Entry Request) and 'Ara Mola' (Break). Inputs for time, reason dropdown, and a sticky primary CTA at the bottom."
+    },
+    {
+      "name": "Admin Dashboard",
+      "purpose": "Manager view to oversee daily attendance and pending approvals.",
+      "states": {
+        "loading": "Skeleton cards.",
+        "empty": "Illustration + 'Tüm onaylar tamamlandı.'",
+        "error": "Retry data fetch."
+      },
+      "layout": "Top metric cards (Mevcut, Devamsız, İzinli). List of pending manual entry and break requests needing approval (with quick Approve/Reject buttons). Recent employee movements feed."
+    }
+  ],
+  "images": {
+    "user_avatar": {
+      "url": "https://images.unsplash.com/photo-1584940120505-117038d90b05?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzZ8MHwxfHNlYXJjaHwxfHxlbXBsb3llZSUyMHByb2ZpbGUlMjBwb3J0cmFpdCUyMGNvcnBvcmF0ZXxlbnwwfHx8fDE3ODI4MTg5NzN8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Corporate employee portrait"
+    },
+    "map_placeholder": {
+      "url": "https://images.unsplash.com/photo-1565468069441-6e49563b02fa",
+      "alt": "Minimal vector street map"
+    }
+  },
+  "haptics": {
+    "punch_in_out": "success",
+    "tab_switch": "light",
+    "request_submit": "medium",
+    "approve_reject": "heavy",
+    "pull_to_refresh": "light"
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the '1 iOS-Native Clean' personality with a formal enterprise tone. White background (#FFFFFF) is the default canvas.",
+    "Use the brand color (#2E5BFF) for the primary actions, particularly the large circular 'Giriş Yap' button as requested.",
+    "CRITICAL: Use `JetBrains Mono` (mapped to displayFontFamily) for all times, durations, and stat numbers (e.g., '3s 45dk', '09:00') to ensure enterprise-grade tabular alignment.",
+    "CRITICAL: Use `Plus Jakarta Sans` (mapped to textFontFamily) for all standard text (labels, names, reasons).",
+    "Create the 'Stats Container' precisely as requested: a rounded container (lg radius) using the `surfaceTertiary` color (#E8EEFF - soft blue) housing the three daily/weekly/planned stat blocks.",
+    "For status badges in the 'Son Hareketler' list, use pill shapes with solid success/warning/error colors and white text (e.g., Green for 'Onaylandı', Amber for 'Beklemede').",
+    "If GPS is unavailable, display a yellow banner (using the warning token) containing the text 'Konum doğrulanamadı' and a warning icon.",
+    "Ensure the layout relies on generous padding (lg/xl) and subtle shadow (tier 1) for cards to maintain an uncluttered, official UI.",
+    "Ensure all interactive lists have at least 56pt height."
+  ]
+}
