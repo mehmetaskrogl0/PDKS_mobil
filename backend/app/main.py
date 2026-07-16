@@ -10,6 +10,7 @@ from app.routers import dashboard
 from .routers import leave
 from .routers import reports
 from fastapi.middleware.cors import CORSMiddleware
+from .routers import teams
 
 app = FastAPI(
     title="PDKS API",
@@ -39,6 +40,7 @@ app.include_router(workplace.router)
 app.include_router(dashboard.router)
 app.include_router(leave.router)
 app.include_router(reports.router)
+app.include_router(teams.router)
 
 @app.get("/")
 def home():
