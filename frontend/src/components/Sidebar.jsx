@@ -9,7 +9,8 @@ import {
     Users,
     Building2,
     CalendarCheck,
-    Network
+    Network,
+    FileBarChart
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -59,8 +60,8 @@ function Sidebar() {
     const menuItemClass = ({ isActive }) => {
 
         return `flex items-center gap-3 rounded-xl px-4 py-3 font-medium transition ${isActive
-            ? "bg-blue-600 text-white shadow-sm"
-            : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "text-gray-300 hover:bg-gray-800 hover:text-white"
             }`;
 
     };
@@ -246,6 +247,23 @@ function Sidebar() {
                                 <CalendarCheck size={20} />
 
                                 İzin Onayları
+
+                            </NavLink>
+
+                        </li>
+
+
+
+                        <li>
+
+                            <NavLink
+                                to="/admin/reports"
+                                className={menuItemClass}
+                            >
+
+                                <FileBarChart size={20} />
+
+                                Mesai Raporları
 
                             </NavLink>
 

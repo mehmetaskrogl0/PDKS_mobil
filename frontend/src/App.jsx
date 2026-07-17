@@ -18,6 +18,7 @@ import Employees from "./pages/Employees";
 import Teams from "./pages/Teams";
 import Workplaces from "./pages/Workplaces";
 import AdminLeaves from "./pages/AdminLeaves";
+import AdminReports from "./pages/AdminReports";
 
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -71,6 +72,7 @@ function App() {
       <Toaster
         position="top-right"
         toastOptions={{
+
           duration: 3000,
 
           style: {
@@ -87,6 +89,7 @@ function App() {
           error: {
             duration: 4000
           }
+
         }}
       />
 
@@ -98,10 +101,12 @@ function App() {
         <Route
           path="/"
           element={
+
             <Navigate
               to="/login"
               replace
             />
+
           }
         />
 
@@ -111,7 +116,9 @@ function App() {
         <Route
           path="/login"
           element={
+
             <Login />
+
           }
         />
 
@@ -121,11 +128,13 @@ function App() {
         <Route
           path="/dashboard"
           element={
+
             <ProtectedLayout>
 
               <Dashboard />
 
             </ProtectedLayout>
+
           }
         />
 
@@ -133,11 +142,13 @@ function App() {
         <Route
           path="/attendance"
           element={
+
             <ProtectedLayout>
 
               <Attendance />
 
             </ProtectedLayout>
+
           }
         />
 
@@ -145,11 +156,13 @@ function App() {
         <Route
           path="/leaves"
           element={
+
             <ProtectedLayout>
 
               <Leaves />
 
             </ProtectedLayout>
+
           }
         />
 
@@ -157,11 +170,13 @@ function App() {
         <Route
           path="/profile"
           element={
+
             <ProtectedLayout>
 
               <Profile />
 
             </ProtectedLayout>
+
           }
         />
 
@@ -171,11 +186,13 @@ function App() {
         <Route
           path="/admin"
           element={
+
             <AdminLayout>
 
               <AdminDashboard />
 
             </AdminLayout>
+
           }
         />
 
@@ -183,11 +200,13 @@ function App() {
         <Route
           path="/admin/employees"
           element={
+
             <AdminLayout>
 
               <Employees />
 
             </AdminLayout>
+
           }
         />
 
@@ -195,11 +214,13 @@ function App() {
         <Route
           path="/admin/teams"
           element={
+
             <AdminLayout>
 
               <Teams />
 
             </AdminLayout>
+
           }
         />
 
@@ -207,11 +228,13 @@ function App() {
         <Route
           path="/admin/workplaces"
           element={
+
             <AdminLayout>
 
               <Workplaces />
 
             </AdminLayout>
+
           }
         />
 
@@ -219,11 +242,27 @@ function App() {
         <Route
           path="/admin/leaves"
           element={
+
             <AdminLayout>
 
               <AdminLeaves />
 
             </AdminLayout>
+
+          }
+        />
+
+
+        <Route
+          path="/admin/reports"
+          element={
+
+            <AdminLayout>
+
+              <AdminReports />
+
+            </AdminLayout>
+
           }
         />
 
@@ -233,10 +272,12 @@ function App() {
         <Route
           path="*"
           element={
+
             <Navigate
               to="/dashboard"
               replace
             />
+
           }
         />
 
