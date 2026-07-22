@@ -588,13 +588,9 @@ function Attendance() {
 
 
     const getLateMinutes = (record) => {
-
         return Number(
-            record.late_minutes ??
-            record.late ??
-            0
+            record.late_minutes ?? 0
         );
-
     };
 
 
@@ -1149,10 +1145,7 @@ function Attendance() {
                                 onClick={handleCheckIn}
                                 disabled={
                                     actionLoading ||
-                                    isWorking ||
-                                    Boolean(
-                                        dashboard?.check_in
-                                    )
+                                    isWorking
                                 }
                                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                             >
