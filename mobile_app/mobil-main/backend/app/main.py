@@ -1,12 +1,14 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .database import engine, Base
 from . import models
+
 from .routers import auth
 from .routers import users
 from .routers import attendance
 from .routers import workplace
-from app.routers import dashboard
+from .routers import dashboard
 from .routers import leave
 from .routers import reports
 
@@ -16,9 +18,15 @@ app = FastAPI(
     version="1.0"
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # Test aşamasında tüm cihazlara izin veriyoruz.
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 Base.metadata.create_all(bind=engine)
-
 
 app.include_router(auth.router)
 app.include_router(users.router)

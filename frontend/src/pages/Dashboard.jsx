@@ -6,7 +6,6 @@ import {
 } from "react";
 
 import toast from "react-hot-toast";
-
 import api from "../api/axios";
 
 import {
@@ -20,7 +19,6 @@ import {
     Users,
     AlertCircle,
     MapPin,
-    Navigation,
     LoaderCircle,
     PlayCircle,
     StopCircle,
@@ -28,24 +26,23 @@ import {
 } from "lucide-react";
 
 
-function formatTime(date) {
+function formatTime(dateValue) {
 
-    if (!date) {
+    if (!dateValue) {
         return "-";
     }
 
-    const parsedDate = new Date(date);
+    const date = new Date(dateValue);
 
-    if (Number.isNaN(parsedDate.getTime())) {
+    if (Number.isNaN(date.getTime())) {
         return "-";
     }
 
-    return parsedDate.toLocaleTimeString(
+    return date.toLocaleTimeString(
         "tr-TR",
         {
             hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit"
+            minute: "2-digit"
         }
     );
 
@@ -67,47 +64,14 @@ function formatElapsedTime(totalSeconds) {
         (safeSeconds % 3600) / 60
     );
 
-    const seconds = safeSeconds % 60;
+    const seconds =
+        safeSeconds % 60;
 
     return [
         String(hours).padStart(2, "0"),
         String(minutes).padStart(2, "0"),
         String(seconds).padStart(2, "0")
     ].join(":");
-
-}
-
-
-function getLocationErrorMessage(error) {
-
-    if (!error) {
-        return "Konum bilgisi alınamadı.";
-    }
-
-    switch (error.code) {
-
-        case 1:
-            return (
-                "Konum izni reddedildi. Tarayıcı ayarlarından " +
-                "konum iznini açmalısınız."
-            );
-
-        case 2:
-            return (
-                "Konumunuz belirlenemedi. GPS veya internet " +
-                "bağlantınızı kontrol edin."
-            );
-
-        case 3:
-            return (
-                "Konum alma işlemi zaman aşımına uğradı. " +
-                "Tekrar deneyin."
-            );
-
-        default:
-            return "Konum bilgisi alınamadı.";
-
-    }
 
 }
 
@@ -134,6 +98,7 @@ function getCurrentLocation() {
                 (position) => {
 
                     resolve({
+
                         latitude:
                             position.coords.latitude,
 
@@ -142,18 +107,36 @@ function getCurrentLocation() {
 
                         accuracy:
                             position.coords.accuracy
+
                     });
 
                 },
 
                 (error) => {
 
-                    reject({
-                        isGeolocationError: true,
-                        originalError: error,
-                        message:
-                            getLocationErrorMessage(error)
-                    });
+                    let message =
+                        "Konum bilgisi alınamadı.";
+
+                    if (error.code === 1) {
+
+                        message =
+                            "Konum izni reddedildi. Tarayıcı ayarlarından konum izni vermelisiniz.";
+
+                    } else if (error.code === 2) {
+
+                        message =
+                            "Konum belirlenemedi. GPS ve internet bağlantınızı kontrol edin.";
+
+                    } else if (error.code === 3) {
+
+                        message =
+                            "Konum alma işlemi zaman aşımına uğradı.";
+
+                    }
+
+                    reject(
+                        new Error(message)
+                    );
 
                 },
 
@@ -173,31 +156,35 @@ function getCurrentLocation() {
 
 function Dashboard() {
 
-    const [data, setData] = useState(null);
-
-    const [loading, setLoading] = useState(true);
-
-    const [errorMessage, setErrorMessage] = useState("");
-
-    const [attendanceLoading, setAttendanceLoading] =
-        useState(false);
-
-    const [locationStatus, setLocationStatus] =
-        useState("Konum kontrolü bekleniyor");
-
-    const [locationAccuracy, setLocationAccuracy] =
+    const [data, setData] =
         useState(null);
 
-    const [elapsedSeconds, setElapsedSeconds] =
-        useState(0);
+    const [loading, setLoading] =
+        useState(true);
+
+    const [errorMessage, setErrorMessage] =
+        useState("");
+
+    const [
+        attendanceLoading,
+        setAttendanceLoading
+    ] = useState(false);
+
+    const [
+        elapsedSeconds,
+        setElapsedSeconds
+    ] = useState(0);
+
+    const [
+        locationText,
+        setLocationText
+    ] = useState(
+        "Mesai başlangıcında kontrol edilir"
+    );
 
 
     const getDashboard = useCallback(
-
-        async ({
-            showLoading = false,
-            showErrorToast = true
-        } = {}) => {
+        async (showLoading = false) => {
 
             try {
 
@@ -208,7 +195,7 @@ function Dashboard() {
                 setErrorMessage("");
 
                 const response = await api.get(
-                    "/dashboard/"
+                    "/dashboard"
                 );
 
                 setData(response.data);
@@ -218,9 +205,8 @@ function Dashboard() {
             } catch (error) {
 
                 console.error(
-                    "Dashboard yüklenemedi:",
-                    error.response?.data ||
-                    error.message
+                    "Dashboard yükleme hatası:",
+                    error
                 );
 
                 const message =
@@ -228,15 +214,6 @@ function Dashboard() {
                     "Dashboard bilgileri yüklenemedi.";
 
                 setErrorMessage(message);
-
-                if (
-                    showErrorToast &&
-                    error.response?.status !== 401
-                ) {
-
-                    toast.error(message);
-
-                }
 
                 return null;
 
@@ -249,55 +226,25 @@ function Dashboard() {
             }
 
         },
-
         []
-
     );
 
 
     useEffect(() => {
 
-        let isMounted = true;
-
-        const loadDashboard = async () => {
-
-            if (!isMounted) {
-                return;
-            }
-
-            await getDashboard({
-                showLoading: true
-            });
-
-        };
-
-        loadDashboard();
-
-        return () => {
-
-            isMounted = false;
-
-        };
+        getDashboard(true);
 
     }, [getDashboard]);
 
 
-    const hasCheckIn = Boolean(
-        data?.check_in
-    );
+    const hasCheckIn =
+        Boolean(data?.check_in);
 
-    const hasCheckOut = Boolean(
-        data?.check_out
-    );
+    const hasCheckOut =
+        Boolean(data?.check_out);
 
     const isWorking =
         hasCheckIn && !hasCheckOut;
-
-    const canCheckIn =
-        !hasCheckIn && !attendanceLoading;
-
-    const canCheckOut =
-        isWorking && !attendanceLoading;
 
     const isCompleted =
         hasCheckIn && hasCheckOut;
@@ -313,11 +260,10 @@ function Dashboard() {
 
         }
 
-        const calculateElapsed = () => {
+        const updateElapsedTime = () => {
 
-            const checkInDate = new Date(
-                data.check_in
-            );
+            const checkInDate =
+                new Date(data.check_in);
 
             if (
                 Number.isNaN(
@@ -344,12 +290,15 @@ function Dashboard() {
 
         };
 
-        calculateElapsed();
 
-        const intervalId = window.setInterval(
-            calculateElapsed,
-            1000
-        );
+        updateElapsedTime();
+
+        const intervalId =
+            window.setInterval(
+                updateElapsedTime,
+                1000
+            );
+
 
         return () => {
 
@@ -363,39 +312,7 @@ function Dashboard() {
     ]);
 
 
-    useEffect(() => {
-
-        if (!isWorking) {
-            return undefined;
-        }
-
-        const refreshInterval = window.setInterval(
-            () => {
-
-                getDashboard({
-                    showLoading: false,
-                    showErrorToast: false
-                });
-
-            },
-            60000
-        );
-
-        return () => {
-
-            window.clearInterval(
-                refreshInterval
-            );
-
-        };
-
-    }, [
-        isWorking,
-        getDashboard
-    ]);
-
-
-    const liveDuration = useMemo(
+    const workDuration = useMemo(
         () => {
 
             if (isWorking) {
@@ -427,174 +344,125 @@ function Dashboard() {
     );
 
 
-    const handleAttendanceAction =
-        async (action) => {
+    const handleAttendance = async (action) => {
 
-            if (attendanceLoading) {
-                return;
-            }
+        if (attendanceLoading) {
+            return;
+        }
 
-            const isCheckInAction =
-                action === "check-in";
+        const isCheckIn =
+            action === "check-in";
 
-            try {
+        const loadingToast = toast.loading(
+            isCheckIn
+                ? "Konumunuz kontrol ediliyor..."
+                : "Çıkış konumunuz kontrol ediliyor..."
+        );
 
-                setAttendanceLoading(true);
+        try {
 
-                setLocationStatus(
-                    "Konumunuz alınıyor..."
-                );
+            setAttendanceLoading(true);
 
-                const location =
-                    await getCurrentLocation();
+            setLocationText(
+                "Konum alınıyor..."
+            );
 
-                setLocationAccuracy(
-                    Math.round(
-                        location.accuracy || 0
-                    )
-                );
+            const location =
+                await getCurrentLocation();
 
-                setLocationStatus(
-                    "Konum alındı, iş yeri kontrol ediliyor..."
-                );
+            setLocationText(
+                `Konum alındı, yaklaşık ±${Math.round(
+                    location.accuracy || 0
+                )} metre`
+            );
 
-                const response = await api.post(
+            const response = await api.post(
 
-                    `/attendance/${action}`,
+                `/attendance/${action}`,
 
-                    {
-                        latitude:
-                            location.latitude,
+                {
+                    latitude:
+                        location.latitude,
 
-                        longitude:
-                            location.longitude
-                    }
-
-                );
-
-                const responseData =
-                    response.data || {};
-
-                if (isCheckInAction) {
-
-                    setLocationStatus(
-                        "İş yeri konumu doğrulandı"
-                    );
-
-                    toast.success(
-                        responseData.message ||
-                        "Mesai başarıyla başlatıldı."
-                    );
-
-                    if (
-                        responseData.late &&
-                        responseData.late_minutes > 0
-                    ) {
-
-                        toast(
-                            `${responseData.late_minutes} dakika geç giriş yaptınız.`,
-                            {
-                                icon: "⏰"
-                            }
-                        );
-
-                    }
-
-                } else {
-
-                    setLocationStatus(
-                        "Çıkış konumu doğrulandı"
-                    );
-
-                    toast.success(
-                        responseData.message ||
-                        "Mesai başarıyla bitirildi."
-                    );
-
+                    longitude:
+                        location.longitude
                 }
 
-                await getDashboard({
-                    showLoading: false
-                });
+            );
 
-            } catch (error) {
+            setLocationText(
+                "İş yeri konumu doğrulandı"
+            );
 
-                console.error(
-                    "Mesai işlemi hatası:",
-                    error
-                );
-
-                let message =
-                    "Mesai işlemi gerçekleştirilemedi.";
-
-                if (
-                    error?.isGeolocationError
-                ) {
-
-                    message =
-                        error.message;
-
-                } else if (
-                    error instanceof Error &&
-                    !error.response
-                ) {
-
-                    message =
-                        error.message;
-
-                } else {
-
-                    message =
-                        error.response?.data?.detail ||
-                        message;
-
+            toast.success(
+                response.data?.message ||
+                (
+                    isCheckIn
+                        ? "Mesai başlatıldı."
+                        : "Mesai bitirildi."
+                ),
+                {
+                    id: loadingToast
                 }
+            );
 
-                setLocationStatus(
-                    "Konum doğrulanamadı"
-                );
+            await getDashboard(false);
 
-                toast.error(message);
+        } catch (error) {
 
-            } finally {
+            console.error(
+                "Mesai işlemi hatası:",
+                error
+            );
 
-                setAttendanceLoading(false);
+            setLocationText(
+                "Konum doğrulanamadı"
+            );
 
-            }
+            toast.error(
+                error.response?.data?.detail ||
+                error.message ||
+                "Mesai işlemi gerçekleştirilemedi.",
+                {
+                    id: loadingToast
+                }
+            );
 
-        };
+        } finally {
 
+            setAttendanceLoading(false);
 
-    const statusColor = hasCheckIn
-        ? (
-            hasCheckOut
-                ? "text-blue-600"
-                : "text-green-600"
-        )
-        : "text-orange-600";
+        }
 
-    const statusBackground = hasCheckIn
-        ? (
-            hasCheckOut
-                ? "bg-blue-100"
-                : "bg-green-100"
-        )
-        : "bg-orange-100";
+    };
 
 
     if (loading) {
 
         return (
 
-            <div className="flex min-h-[60vh] items-center justify-center">
+            <div
+                className="
+                    flex min-h-[500px]
+                    items-center
+                    justify-center
+                "
+            >
 
                 <div className="text-center">
 
-                    <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600" />
+                    <LoaderCircle
+                        size={42}
+                        className="
+                            mx-auto
+                            animate-spin
+                            text-blue-600
+                        "
+                    />
 
-                    <p className="text-gray-500">
+                    <p className="mt-4 text-slate-500">
 
-                        Dashboard yükleniyor...
+                        Kontrol paneli yükleniyor...
 
                     </p>
 
@@ -611,22 +479,48 @@ function Dashboard() {
 
         return (
 
-            <div className="flex min-h-[60vh] items-center justify-center">
+            <div
+                className="
+                    flex min-h-[500px]
+                    items-center
+                    justify-center
+                "
+            >
 
-                <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow">
+                <div
+                    className="
+                        w-full
+                        max-w-md
+                        rounded-2xl
+                        border
+                        border-slate-200
+                        bg-white
+                        p-8
+                        text-center
+                        shadow-sm
+                    "
+                >
 
                     <AlertCircle
                         size={48}
-                        className="mx-auto mb-4 text-red-500"
+                        className="
+                            mx-auto
+                            text-red-500
+                        "
                     />
 
-                    <h2 className="mb-2 text-xl font-bold text-gray-800">
-
+                    <h2
+                        className="
+                            mt-4
+                            text-xl
+                            font-bold
+                            text-slate-800
+                        "
+                    >
                         Dashboard yüklenemedi
-
                     </h2>
 
-                    <p className="mb-6 text-gray-500">
+                    <p className="mt-2 text-slate-500">
 
                         {
                             errorMessage ||
@@ -638,15 +532,20 @@ function Dashboard() {
                     <button
                         type="button"
                         onClick={() => {
-                            getDashboard({
-                                showLoading: true
-                            });
+                            getDashboard(true);
                         }}
-                        className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white transition hover:bg-blue-800"
+                        className="
+                            mt-6
+                            rounded-xl
+                            bg-blue-600
+                            px-5 py-3
+                            font-semibold
+                            text-white
+                            transition
+                            hover:bg-blue-700
+                        "
                     >
-
                         Tekrar Dene
-
                     </button>
 
                 </div>
@@ -658,19 +557,39 @@ function Dashboard() {
     }
 
 
+    const statusText =
+
+        data.status ||
+
+        (
+            isWorking
+                ? "Çalışıyor"
+                : isCompleted
+                    ? "Mesai tamamlandı"
+                    : "Bugün giriş yapılmamış"
+        );
+
+
     return (
 
-        <div className="space-y-8">
+        <div className="space-y-6">
+
+            {/* Başlık */}
 
             <div>
 
-                <h1 className="text-3xl font-bold text-gray-800">
-
+                <h1
+                    className="
+                        text-2xl
+                        font-bold
+                        text-slate-800
+                        sm:text-3xl
+                    "
+                >
                     PDKS Kontrol Paneli
-
                 </h1>
 
-                <p className="mt-2 text-gray-500">
+                <p className="mt-2 text-slate-500">
 
                     Personel devam ve çalışma bilgileri
 
@@ -679,780 +598,560 @@ function Dashboard() {
             </div>
 
 
-            {/* ========================= */}
-            {/* MESAİ İŞLEM KARTI */}
-            {/* ========================= */}
+            {/* Üst kartlar */}
 
             <div
-                className={
-                    `overflow-hidden rounded-3xl border shadow-lg ${isWorking
-                        ? "border-green-200 bg-gradient-to-r from-green-50 to-emerald-50"
-                        : isCompleted
-                            ? "border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50"
-                            : "border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50"
-                    }`
-                }
+                className="
+                    grid
+                    grid-cols-1
+                    gap-5
+                    sm:grid-cols-2
+                    xl:grid-cols-4
+                "
             >
 
-                <div className="grid grid-cols-1 gap-8 p-7 lg:grid-cols-[1.4fr_1fr] lg:p-9">
-
-                    <div>
-
-                        <div className="mb-5 flex flex-wrap items-center gap-3">
-
-                            <div
-                                className={
-                                    `rounded-2xl p-3 ${isWorking
-                                        ? "bg-green-600"
-                                        : isCompleted
-                                            ? "bg-blue-600"
-                                            : "bg-orange-500"
-                                    }`
-                                }
-                            >
-
-                                {
-                                    isWorking
-                                        ? (
-                                            <Timer
-                                                size={30}
-                                                className="text-white"
-                                            />
-                                        )
-                                        : isCompleted
-                                            ? (
-                                                <CheckCircle2
-                                                    size={30}
-                                                    className="text-white"
-                                                />
-                                            )
-                                            : (
-                                                <Clock
-                                                    size={30}
-                                                    className="text-white"
-                                                />
-                                            )
-                                }
-
-                            </div>
-
-                            <div>
-
-                                <p className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-
-                                    Mesai Durumu
-
-                                </p>
-
-                                <h2
-                                    className={
-                                        `text-2xl font-bold ${isWorking
-                                            ? "text-green-700"
-                                            : isCompleted
-                                                ? "text-blue-700"
-                                                : "text-orange-700"
-                                        }`
-                                    }
-                                >
-
-                                    {
-                                        data.status ||
-                                        "Bugün giriş yapılmamış"
-                                    }
-
-                                </h2>
-
-                            </div>
-
-                        </div>
-
-
-                        <div className="mb-6">
-
-                            <p className="mb-1 text-sm font-medium text-gray-500">
-
-                                {
-                                    isWorking
-                                        ? "Canlı Çalışma Süresi"
-                                        : isCompleted
-                                            ? "Bugünkü Toplam Süre"
-                                            : "Mesai Sayacı"
-                                }
-
-                            </p>
-
-                            <p className="font-mono text-4xl font-black tracking-wider text-gray-900 md:text-5xl">
-
-                                {liveDuration}
-
-                            </p>
-
-                        </div>
-
-
-                        <div className="flex flex-wrap gap-3 text-sm">
-
-                            <div className="flex items-center gap-2 rounded-xl bg-white/80 px-4 py-3 shadow-sm">
-
-                                <MapPin
-                                    size={19}
-                                    className="text-red-500"
-                                />
-
-                                <div>
-
-                                    <p className="text-xs text-gray-500">
-
-                                        Konum durumu
-
-                                    </p>
-
-                                    <p className="font-semibold text-gray-800">
-
-                                        {locationStatus}
-
-                                    </p>
-
-                                </div>
-
-                            </div>
-
-
-                            {
-                                locationAccuracy !== null && (
-
-                                    <div className="flex items-center gap-2 rounded-xl bg-white/80 px-4 py-3 shadow-sm">
-
-                                        <Navigation
-                                            size={19}
-                                            className="text-blue-600"
-                                        />
-
-                                        <div>
-
-                                            <p className="text-xs text-gray-500">
-
-                                                Konum hassasiyeti
-
-                                            </p>
-
-                                            <p className="font-semibold text-gray-800">
-
-                                                Yaklaşık ±
-                                                {locationAccuracy} metre
-
-                                            </p>
-
-                                        </div>
-
-                                    </div>
-
-                                )
-                            }
-
-                        </div>
-
-                    </div>
-
-
-                    <div className="flex flex-col justify-center rounded-2xl bg-white/90 p-6 shadow-sm">
-
-                        {
-                            !hasCheckIn && (
-
-                                <>
-
-                                    <h3 className="mb-2 text-xl font-bold text-gray-800">
-
-                                        Mesainizi Başlatın
-
-                                    </h3>
-
-                                    <p className="mb-6 text-sm leading-6 text-gray-500">
-
-                                        Mesai başlangıcında konumunuz
-                                        iş yeri koordinatlarıyla
-                                        karşılaştırılacaktır.
-
-                                    </p>
-
-                                    <button
-                                        type="button"
-                                        disabled={!canCheckIn}
-                                        onClick={() => {
-                                            handleAttendanceAction(
-                                                "check-in"
-                                            );
-                                        }}
-                                        className="flex w-full items-center justify-center gap-3 rounded-xl bg-green-600 px-6 py-4 text-lg font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-                                    >
-
-                                        {
-                                            attendanceLoading
-                                                ? (
-                                                    <LoaderCircle
-                                                        size={25}
-                                                        className="animate-spin"
-                                                    />
-                                                )
-                                                : (
-                                                    <PlayCircle
-                                                        size={25}
-                                                    />
-                                                )
-                                        }
-
-                                        {
-                                            attendanceLoading
-                                                ? "Konum Kontrol Ediliyor..."
-                                                : "Mesaiye Başla"
-                                        }
-
-                                    </button>
-
-                                </>
-
-                            )
-                        }
-
-
-                        {
-                            isWorking && (
-
-                                <>
-
-                                    <h3 className="mb-2 text-xl font-bold text-green-700">
-
-                                        Mesainiz Devam Ediyor
-
-                                    </h3>
-
-                                    <p className="mb-6 text-sm leading-6 text-gray-500">
-
-                                        Mesaiyi tamamladığınızda
-                                        çıkış butonuna basın. Çalışma
-                                        süreniz otomatik hesaplanacaktır.
-
-                                    </p>
-
-                                    <button
-                                        type="button"
-                                        disabled={!canCheckOut}
-                                        onClick={() => {
-                                            handleAttendanceAction(
-                                                "check-out"
-                                            );
-                                        }}
-                                        className="flex w-full items-center justify-center gap-3 rounded-xl bg-red-600 px-6 py-4 text-lg font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-                                    >
-
-                                        {
-                                            attendanceLoading
-                                                ? (
-                                                    <LoaderCircle
-                                                        size={25}
-                                                        className="animate-spin"
-                                                    />
-                                                )
-                                                : (
-                                                    <StopCircle
-                                                        size={25}
-                                                    />
-                                                )
-                                        }
-
-                                        {
-                                            attendanceLoading
-                                                ? "Konum Kontrol Ediliyor..."
-                                                : "Mesaiyi Bitir"
-                                        }
-
-                                    </button>
-
-                                </>
-
-                            )
-                        }
-
-
-                        {
-                            isCompleted && (
-
-                                <div className="text-center">
-
-                                    <CheckCircle2
-                                        size={58}
-                                        className="mx-auto mb-4 text-blue-600"
-                                    />
-
-                                    <h3 className="mb-2 text-xl font-bold text-blue-700">
-
-                                        Bugünkü Mesai Tamamlandı
-
-                                    </h3>
-
-                                    <p className="text-sm leading-6 text-gray-500">
-
-                                        Giriş ve çıkış bilgileriniz
-                                        başarıyla kaydedildi.
-
-                                    </p>
-
-                                </div>
-
-                            )
-                        }
-
-                    </div>
-
-                </div>
+                <InfoCard
+                    title="Personel"
+                    value={data.user || "-"}
+                    icon={User}
+                    iconClass="bg-blue-100 text-blue-600"
+                />
+
+                <InfoCard
+                    title="Durum"
+                    value={statusText}
+                    icon={Clock}
+                    iconClass={
+                        isWorking
+                            ? "bg-green-100 text-green-600"
+                            : isCompleted
+                                ? "bg-blue-100 text-blue-600"
+                                : "bg-orange-100 text-orange-600"
+                    }
+                />
+
+                <InfoCard
+                    title="Onaylı İzin"
+                    value={
+                        `${data.approved_leave_count ?? 0} Gün`
+                    }
+                    icon={CalendarCheck}
+                    iconClass="bg-purple-100 text-purple-600"
+                />
+
+                <InfoCard
+                    title="Çalışma Süresi"
+                    value={
+                        hasCheckIn
+                            ? workDuration
+                            : "Beklemede"
+                    }
+                    icon={Timer}
+                    iconClass="bg-orange-100 text-orange-600"
+                />
 
             </div>
-            {/* ========================= */}
-            {/* ÖZET KARTLARI */}
-            {/* ========================= */}
-
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-
-                <div className="flex items-center gap-4 rounded-2xl bg-white p-6 shadow">
-
-                    <div className="rounded-xl bg-blue-100 p-3">
-
-                        <User
-                            size={32}
-                            className="text-blue-600"
-                        />
-
-                    </div>
-
-                    <div className="min-w-0">
-
-                        <p className="text-gray-500">
-
-                            Personel
-
-                        </p>
-
-                        <h2 className="truncate text-xl font-bold text-gray-800">
-
-                            {data.user || "-"}
-
-                        </h2>
-
-                    </div>
-
-                </div>
 
 
-                <div className="flex items-center gap-4 rounded-2xl bg-white p-6 shadow">
+            {/* Mesai işlemi */}
 
-                    <div
-                        className={
-                            `${statusBackground} rounded-xl p-3`
-                        }
-                    >
+            <div
+                className="
+                    rounded-2xl
+                    border
+                    border-slate-200
+                    bg-white
+                    shadow-sm
+                "
+            >
 
-                        <Clock
-                            size={32}
-                            className={statusColor}
-                        />
+                <div
+                    className="
+                        flex flex-col
+                        gap-5
+                        border-b
+                        border-slate-100
+                        p-6
+                        lg:flex-row
+                        lg:items-center
+                        lg:justify-between
+                    "
+                >
 
-                    </div>
+                    <div className="flex items-center gap-4">
 
-                    <div className="min-w-0">
-
-                        <p className="text-gray-500">
-
-                            Durum
-
-                        </p>
-
-                        <h2
-                            className={
-                                `text-xl font-bold ${statusColor}`
-                            }
+                        <div
+                            className={`
+                                flex h-14 w-14
+                                items-center
+                                justify-center
+                                rounded-2xl
+                                ${isWorking
+                                    ? "bg-green-100 text-green-600"
+                                    : isCompleted
+                                        ? "bg-blue-100 text-blue-600"
+                                        : "bg-orange-100 text-orange-600"
+                                }
+                            `}
                         >
 
                             {
-                                data.status ||
-                                "Durum bilinmiyor"
+                                isWorking
+                                    ? <Timer size={28} />
+                                    : isCompleted
+                                        ? <CheckCircle2 size={28} />
+                                        : <Clock size={28} />
                             }
 
-                        </h2>
+                        </div>
+
+
+                        <div>
+
+                            <p
+                                className="
+                                    text-sm
+                                    font-medium
+                                    text-slate-500
+                                "
+                            >
+                                Güncel mesai durumu
+                            </p>
+
+                            <h2
+                                className="
+                                    mt-1
+                                    text-xl
+                                    font-bold
+                                    text-slate-800
+                                "
+                            >
+                                {statusText}
+                            </h2>
+
+                        </div>
 
                     </div>
 
-                </div>
 
+                    <div
+                        className="
+                            flex flex-col
+                            gap-3
+                            sm:flex-row
+                        "
+                    >
 
-                <div className="flex items-center gap-4 rounded-2xl bg-white p-6 shadow">
-
-                    <div className="rounded-xl bg-purple-100 p-3">
-
-                        <CalendarCheck
-                            size={32}
-                            className="text-purple-600"
-                        />
-
-                    </div>
-
-                    <div>
-
-                        <p className="text-gray-500">
-
-                            Onaylı İzin
-
-                        </p>
-
-                        <h2 className="text-xl font-bold text-gray-800">
-
-                            {
-                                data.approved_leave_count ?? 0
-                            } Gün
-
-                        </h2>
-
-                    </div>
-
-                </div>
-
-
-                <div className="flex items-center gap-4 rounded-2xl bg-white p-6 shadow">
-
-                    <div className="rounded-xl bg-orange-100 p-3">
-
-                        <Timer
-                            size={32}
-                            className="text-orange-600"
-                        />
-
-                    </div>
-
-                    <div>
-
-                        <p className="text-gray-500">
-
-                            Çalışma Süresi
-
-                        </p>
-
-                        <h2 className="text-xl font-bold text-gray-800">
-
-                            {
+                        <button
+                            type="button"
+                            disabled={
+                                attendanceLoading ||
                                 hasCheckIn
+                            }
+                            onClick={() => {
+                                handleAttendance(
+                                    "check-in"
+                                );
+                            }}
+                            className="
+                                inline-flex
+                                items-center
+                                justify-center
+                                gap-2
+                                rounded-xl
+                                bg-green-600
+                                px-6 py-3
+                                font-semibold
+                                text-white
+                                transition
+                                hover:bg-green-700
+                                disabled:cursor-not-allowed
+                                disabled:bg-slate-300
+                            "
+                        >
+
+                            {
+                                attendanceLoading
                                     ? (
-                                        isWorking
-                                            ? liveDuration
-                                            : data.work_duration
+                                        <LoaderCircle
+                                            size={20}
+                                            className="animate-spin"
+                                        />
                                     )
-                                    : "Beklemede"
+                                    : (
+                                        <PlayCircle size={20} />
+                                    )
                             }
 
-                        </h2>
+                            Mesaiye Başla
+
+                        </button>
+
+
+                        <button
+                            type="button"
+                            disabled={
+                                attendanceLoading ||
+                                !isWorking
+                            }
+                            onClick={() => {
+                                handleAttendance(
+                                    "check-out"
+                                );
+                            }}
+                            className="
+                                inline-flex
+                                items-center
+                                justify-center
+                                gap-2
+                                rounded-xl
+                                bg-red-600
+                                px-6 py-3
+                                font-semibold
+                                text-white
+                                transition
+                                hover:bg-red-700
+                                disabled:cursor-not-allowed
+                                disabled:bg-slate-300
+                            "
+                        >
+
+                            {
+                                attendanceLoading
+                                    ? (
+                                        <LoaderCircle
+                                            size={20}
+                                            className="animate-spin"
+                                        />
+                                    )
+                                    : (
+                                        <StopCircle size={20} />
+                                    )
+                            }
+
+                            Mesaiyi Bitir
+
+                        </button>
 
                     </div>
+
+                </div>
+
+
+                <div
+                    className="
+                        grid
+                        grid-cols-1
+                        gap-4
+                        p-6
+                        sm:grid-cols-2
+                        xl:grid-cols-4
+                    "
+                >
+
+                    <DetailCard
+                        title="Giriş Saati"
+                        value={formatTime(data.check_in)}
+                        icon={LogIn}
+                        iconClass="text-green-600"
+                    />
+
+                    <DetailCard
+                        title="Çıkış Saati"
+                        value={
+                            isWorking
+                                ? "Devam ediyor"
+                                : formatTime(
+                                    data.check_out
+                                )
+                        }
+                        icon={LogOut}
+                        iconClass="text-red-600"
+                    />
+
+                    <DetailCard
+                        title="Çalışma Süresi"
+                        value={workDuration}
+                        icon={Timer}
+                        iconClass="text-blue-600"
+                        mono
+                    />
+
+                    <DetailCard
+                        title="Konum Kontrolü"
+                        value={locationText}
+                        icon={MapPin}
+                        iconClass="text-purple-600"
+                    />
 
                 </div>
 
             </div>
 
 
-            {/* ========================= */}
-            {/* İŞ YERİ VE EKİP */}
-            {/* ========================= */}
+            {/* İş yeri ve ekip */}
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div
+                className="
+                    grid
+                    grid-cols-1
+                    gap-5
+                    lg:grid-cols-2
+                "
+            >
 
-                <div className="flex items-center gap-4 rounded-2xl bg-white p-6 shadow">
+                <InfoCard
+                    title="İş Yeri"
+                    value={
+                        data.workplace_name ||
+                        "Atanmamış"
+                    }
+                    icon={Building2}
+                    iconClass="bg-cyan-100 text-cyan-600"
+                />
 
-                    <div className="rounded-xl bg-cyan-100 p-3">
-
-                        <Building2
-                            size={30}
-                            className="text-cyan-600"
-                        />
-
-                    </div>
-
-                    <div>
-
-                        <p className="text-gray-500">
-
-                            İş Yeri
-
-                        </p>
-
-                        <h2 className="text-lg font-bold text-gray-800">
-
-                            {
-                                data.workplace_name ||
-                                "Atanmamış"
-                            }
-
-                        </h2>
-
-                    </div>
-
-                </div>
-
-
-                <div className="flex items-center gap-4 rounded-2xl bg-white p-6 shadow">
-
-                    <div className="rounded-xl bg-indigo-100 p-3">
-
-                        <Users
-                            size={30}
-                            className="text-indigo-600"
-                        />
-
-                    </div>
-
-                    <div>
-
-                        <p className="text-gray-500">
-
-                            Ekip
-
-                        </p>
-
-                        <h2 className="text-lg font-bold text-gray-800">
-
-                            {
-                                data.team_name ||
-                                "Ekibe atanmamış"
-                            }
-
-                        </h2>
-
-                    </div>
-
-                </div>
+                <InfoCard
+                    title="Ekip"
+                    value={
+                        data.team_name ||
+                        "Ekibe atanmamış"
+                    }
+                    icon={Users}
+                    iconClass="bg-indigo-100 text-indigo-600"
+                />
 
             </div>
 
 
-            {/* ========================= */}
-            {/* BUGÜNKÜ MESAİ */}
-            {/* ========================= */}
+            {/* Hesaplamalar */}
 
-            <div className="rounded-2xl bg-white p-8 shadow">
+            <div
+                className="
+                    grid
+                    grid-cols-1
+                    gap-5
+                    md:grid-cols-3
+                "
+            >
 
-                <h2 className="mb-6 text-xl font-bold text-gray-800">
+                <CalculationCard
+                    title="Geç Kalma"
+                    value={
+                        !hasCheckIn
+                            ? "Henüz giriş yapılmadı"
+                            : data.late
+                                ? `${data.late_minutes ?? 0} dakika`
+                                : "Zamanında giriş"
+                    }
+                    valueClass={
+                        data.late
+                            ? "text-red-600"
+                            : "text-green-600"
+                    }
+                />
 
-                    Bugünkü Mesai
+                <CalculationCard
+                    title="Fazla Mesai"
+                    value={
+                        `${data.overtime_minutes ?? 0} dakika`
+                    }
+                    valueClass="text-blue-600"
+                />
+
+                <CalculationCard
+                    title="Eksik Çalışma"
+                    value={
+                        `${data.missing_minutes ?? 0} dakika`
+                    }
+                    valueClass={
+                        (data.missing_minutes ?? 0) > 0
+                            ? "text-red-600"
+                            : "text-green-600"
+                    }
+                />
+
+            </div>
+
+        </div>
+
+    );
+
+}
+
+
+function InfoCard({
+    title,
+    value,
+    icon: Icon,
+    iconClass
+}) {
+
+    return (
+
+        <div
+            className="
+                flex min-h-32
+                items-center
+                gap-4
+                rounded-2xl
+                border
+                border-slate-200
+                bg-white
+                p-6
+                shadow-sm
+            "
+        >
+
+            <div
+                className={`
+                    flex h-14 w-14
+                    shrink-0
+                    items-center
+                    justify-center
+                    rounded-2xl
+                    ${iconClass}
+                `}
+            >
+
+                <Icon size={28} />
+
+            </div>
+
+
+            <div className="min-w-0">
+
+                <p className="text-sm text-slate-500">
+
+                    {title}
+
+                </p>
+
+                <h2
+                    className="
+                        mt-1
+                        truncate
+                        text-lg
+                        font-bold
+                        text-slate-800
+                    "
+                >
+
+                    {value}
 
                 </h2>
 
+            </div>
 
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        </div>
 
-                    <div className="flex items-center gap-4">
+    );
 
-                        <LogIn
-                            size={35}
-                            className="text-green-600"
-                        />
-
-                        <div>
-
-                            <p className="text-gray-500">
-
-                                Giriş
-
-                            </p>
-
-                            <p className="text-lg font-bold text-gray-800">
-
-                                {
-                                    formatTime(
-                                        data.check_in
-                                    )
-                                }
-
-                            </p>
-
-                        </div>
-
-                    </div>
+}
 
 
-                    <div className="flex items-center gap-4">
+function DetailCard({
+    title,
+    value,
+    icon: Icon,
+    iconClass,
+    mono = false
+}) {
 
-                        <LogOut
-                            size={35}
-                            className="text-red-600"
-                        />
+    return (
 
-                        <div>
+        <div
+            className="
+                rounded-xl
+                bg-slate-50
+                p-4
+            "
+        >
 
-                            <p className="text-gray-500">
+            <div
+                className="
+                    flex items-center
+                    gap-2
+                    text-sm
+                    font-medium
+                    text-slate-500
+                "
+            >
 
-                                Çıkış
+                <Icon
+                    size={18}
+                    className={iconClass}
+                />
 
-                            </p>
-
-                            <p className="text-lg font-bold text-gray-800">
-
-                                {
-                                    hasCheckIn
-                                        ? (
-                                            data.check_out
-                                                ? formatTime(
-                                                    data.check_out
-                                                )
-                                                : "Devam ediyor"
-                                        )
-                                        : "-"
-                                }
-
-                            </p>
-
-                        </div>
-
-                    </div>
-
-
-                    <div className="flex items-center gap-4">
-
-                        <Timer
-                            size={35}
-                            className="text-blue-600"
-                        />
-
-                        <div>
-
-                            <p className="text-gray-500">
-
-                                Toplam Süre
-
-                            </p>
-
-                            <p className="text-lg font-bold text-gray-800">
-
-                                {
-                                    hasCheckIn
-                                        ? (
-                                            isWorking
-                                                ? liveDuration
-                                                : data.work_duration
-                                        )
-                                        : "-"
-                                }
-
-                            </p>
-
-                        </div>
-
-                    </div>
-
-                </div>
+                {title}
 
             </div>
 
-
-            {/* ========================= */}
-            {/* MESAİ HESAPLAMALARI */}
-            {/* ========================= */}
-
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-
-                <div className="rounded-xl bg-white p-5 shadow">
-
-                    <h3 className="mb-2 font-bold text-gray-800">
-
-                        Geç Kalma
-
-                    </h3>
-
-                    <p
-                        className={
-                            data.late
-                                ? "font-bold text-red-600"
-                                : "font-bold text-green-600"
-                        }
-                    >
-
-                        {
-                            !hasCheckIn
-                                ? "Henüz giriş yapılmadı"
-                                : data.late
-                                    ? `${data.late_minutes ?? 0} dakika geç kalındı`
-                                    : "Zamanında giriş yapıldı"
-                        }
-
-                    </p>
-
-                </div>
-
-
-                <div className="rounded-xl bg-white p-5 shadow">
-
-                    <h3 className="mb-2 font-bold text-gray-800">
-
-                        Fazla Mesai
-
-                    </h3>
-
-                    <p className="font-bold text-blue-600">
-
-                        {
-                            data.overtime_minutes ?? 0
-                        } dakika
-
-                    </p>
-
-                    {
-                        isWorking && (
-
-                            <p className="mt-2 text-xs text-gray-400">
-
-                                Mesai bitirildiğinde hesaplanır.
-
-                            </p>
-
-                        )
+            <p
+                className={`
+                    mt-3
+                    font-bold
+                    text-slate-800
+                    ${mono
+                        ? "font-mono text-xl"
+                        : "text-base"
                     }
+                `}
+            >
 
-                </div>
+                {value}
+
+            </p>
+
+        </div>
+
+    );
+
+}
 
 
-                <div className="rounded-xl bg-white p-5 shadow">
+function CalculationCard({
+    title,
+    value,
+    valueClass
+}) {
 
-                    <h3 className="mb-2 font-bold text-gray-800">
+    return (
 
-                        Eksik Çalışma
+        <div
+            className="
+                rounded-2xl
+                border
+                border-slate-200
+                bg-white
+                p-6
+                shadow-sm
+            "
+        >
 
-                    </h3>
+            <h3
+                className="
+                    text-sm
+                    font-semibold
+                    text-slate-500
+                "
+            >
 
-                    <p
-                        className={
-                            (data.missing_minutes ?? 0) > 0
-                                ? "font-bold text-red-600"
-                                : "font-bold text-green-600"
-                        }
-                    >
+                {title}
 
-                        {
-                            data.missing_minutes ?? 0
-                        } dakika
+            </h3>
 
-                    </p>
+            <p
+                className={`
+                    mt-3
+                    text-lg
+                    font-bold
+                    ${valueClass}
+                `}
+            >
 
-                    {
-                        isWorking && (
+                {value}
 
-                            <p className="mt-2 text-xs text-gray-400">
-
-                                Mesai bitirildiğinde hesaplanır.
-
-                            </p>
-
-                        )
-                    }
-
-                </div>
-
-            </div>
+            </p>
 
         </div>
 

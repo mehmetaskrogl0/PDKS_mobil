@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock } from "lucide-react";
+
+import {
+    Mail,
+    Lock,
+    LoaderCircle
+} from "lucide-react";
+
 import toast from "react-hot-toast";
 
 import api from "../api/axios";
@@ -15,11 +21,18 @@ function Login() {
     const [loading, setLoading] = useState(false);
 
 
-    const handleLogin = async (e) => {
+    const handleLogin = async (event) => {
 
-        e.preventDefault();
+        event.preventDefault();
 
-        if (!email.trim() || !password.trim()) {
+        const normalizedEmail =
+            email.trim();
+
+
+        if (
+            !normalizedEmail ||
+            !password.trim()
+        ) {
 
             toast.error(
                 "E-posta ve şifre alanlarını doldurun."
@@ -29,44 +42,106 @@ function Login() {
 
         }
 
+
         setLoading(true);
+
 
         try {
 
-            const response = await api.post(
+            localStorage.clear();
+
+
+            const loginResponse = await api.post(
                 "/auth/login",
                 {
-                    email: email.trim(),
+                    email: normalizedEmail,
                     password
                 }
             );
 
+
             const accessToken =
-                response.data?.access_token;
+                loginResponse.data?.access_token;
+
 
             if (!accessToken) {
 
                 throw new Error(
-                    "Sunucudan erişim anahtarı alınamadı."
+                    "Sunucudan token alınamadı."
                 );
 
             }
 
+
+            // Önce token kaydediliyor.
+            // Böylece /users/me isteğine otomatik eklenir.
             localStorage.setItem(
                 "token",
                 accessToken
             );
 
-            toast.success(
-                "Giriş başarılı!"
+
+            // Kullanıcı ve rol bilgisi doğrudan backend'den alınır.
+            const userResponse = await api.get(
+                "/users/me"
             );
 
-            navigate(
-                "/dashboard",
-                {
-                    replace: true
-                }
+
+            const user =
+                userResponse.data;
+
+
+            const role = String(
+                user?.role || "employee"
+            )
+                .trim()
+                .toLowerCase();
+
+
+            const storedUser = {
+                ...user,
+                role
+            };
+
+
+            localStorage.setItem(
+                "role",
+                role
             );
+
+
+            localStorage.setItem(
+                "user",
+                JSON.stringify(storedUser)
+            );
+
+
+            toast.success(
+                role === "admin"
+                    ? "Yönetici girişi başarılı!"
+                    : "Giriş başarılı!"
+            );
+
+
+            if (role === "admin") {
+
+                navigate(
+                    "/admin/dashboard",
+                    {
+                        replace: true
+                    }
+                );
+
+            } else {
+
+                navigate(
+                    "/dashboard",
+                    {
+                        replace: true
+                    }
+                );
+
+            }
 
         } catch (error) {
 
@@ -75,14 +150,14 @@ function Login() {
                 error
             );
 
-            localStorage.removeItem(
-                "token"
-            );
+
+            localStorage.clear();
+
 
             toast.error(
                 error.response?.data?.detail ||
                 error.message ||
-                "Giriş başarısız!"
+                "Giriş işlemi başarısız."
             );
 
         } finally {
@@ -96,18 +171,45 @@ function Login() {
 
     return (
 
-        <div className="min-h-screen bg-gradient-to-br from-blue-700 to-blue-900 flex items-center justify-center px-4">
+        <div
+            className="
+                flex min-h-screen
+                items-center
+                justify-center
+                bg-gradient-to-br
+                from-blue-700
+                to-blue-950
+                px-4
+            "
+        >
 
-            <div className="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-8">
+            <div
+                className="
+                    w-full
+                    max-w-sm
+                    rounded-2xl
+                    bg-white
+                    p-8
+                    shadow-2xl
+                "
+            >
 
-                <div className="text-center mb-8">
+                <div className="mb-8 text-center">
 
-                    <h1 className="text-5xl font-bold text-blue-700">
+                    <h1
+                        className="
+                            text-5xl
+                            font-bold
+                            text-blue-700
+                        "
+                    >
                         PDKS
                     </h1>
 
-                    <p className="text-gray-500 mt-2">
+                    <p className="mt-2 text-gray-500">
+
                         Personel Devam Kontrol Sistemi
+
                     </p>
 
                 </div>
@@ -118,21 +220,44 @@ function Login() {
                     <div className="relative mb-5">
 
                         <Mail
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                             size={20}
+                            className="
+                                absolute
+                                left-3
+                                top-1/2
+                                -translate-y-1/2
+                                text-gray-400
+                            "
                         />
 
                         <input
-                            className="w-full border border-gray-300 p-3 pl-10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                             type="email"
                             placeholder="E-posta adresi"
                             value={email}
-                            onChange={(e) =>
-                                setEmail(e.target.value)
-                            }
+                            onChange={(event) => {
+
+                                setEmail(
+                                    event.target.value
+                                );
+
+                            }}
                             autoComplete="email"
-                            required
                             disabled={loading}
+                            required
+                            className="
+                                w-full
+                                rounded-lg
+                                border
+                                border-gray-300
+                                p-3
+                                pl-10
+                                outline-none
+                                transition
+                                focus:border-blue-500
+                                focus:ring-2
+                                focus:ring-blue-100
+                                disabled:bg-gray-100
+                            "
                         />
 
                     </div>
@@ -141,21 +266,44 @@ function Login() {
                     <div className="relative mb-6">
 
                         <Lock
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                             size={20}
+                            className="
+                                absolute
+                                left-3
+                                top-1/2
+                                -translate-y-1/2
+                                text-gray-400
+                            "
                         />
 
                         <input
-                            className="w-full border border-gray-300 p-3 pl-10 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                             type="password"
                             placeholder="Şifre"
                             value={password}
-                            onChange={(e) =>
-                                setPassword(e.target.value)
-                            }
+                            onChange={(event) => {
+
+                                setPassword(
+                                    event.target.value
+                                );
+
+                            }}
                             autoComplete="current-password"
-                            required
                             disabled={loading}
+                            required
+                            className="
+                                w-full
+                                rounded-lg
+                                border
+                                border-gray-300
+                                p-3
+                                pl-10
+                                outline-none
+                                transition
+                                focus:border-blue-500
+                                focus:ring-2
+                                focus:ring-blue-100
+                                disabled:bg-gray-100
+                            "
                         />
 
                     </div>
@@ -164,19 +312,51 @@ function Login() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-blue-700 text-white py-3 rounded-lg font-semibold hover:bg-blue-800 transition disabled:bg-blue-400 disabled:cursor-not-allowed"
+                        className="
+                            flex w-full
+                            items-center
+                            justify-center
+                            gap-2
+                            rounded-lg
+                            bg-blue-700
+                            py-3
+                            font-semibold
+                            text-white
+                            transition
+                            hover:bg-blue-800
+                            disabled:cursor-not-allowed
+                            disabled:bg-blue-400
+                        "
                     >
+
                         {
                             loading
-                                ? "Giriş yapılıyor..."
+                                ? (
+                                    <>
+                                        <LoaderCircle
+                                            size={20}
+                                            className="animate-spin"
+                                        />
+
+                                        Giriş yapılıyor...
+                                    </>
+                                )
                                 : "Giriş Yap"
                         }
+
                     </button>
 
                 </form>
 
 
-                <p className="text-center text-gray-400 text-sm mt-6">
+                <p
+                    className="
+                        mt-6
+                        text-center
+                        text-sm
+                        text-gray-400
+                    "
+                >
                     © 2026 PDKS Sistemi
                 </p>
 

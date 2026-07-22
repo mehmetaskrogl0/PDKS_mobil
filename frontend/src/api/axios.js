@@ -18,7 +18,9 @@ api.interceptors.request.use(
 
     (config) => {
 
-        const token = localStorage.getItem("token");
+        const token =
+            localStorage.getItem("token");
+
 
         const validToken =
             token &&
@@ -38,6 +40,9 @@ api.interceptors.request.use(
         } else {
 
             localStorage.removeItem("token");
+            localStorage.removeItem("role");
+            localStorage.removeItem("user");
+
 
             if (config.headers) {
 
@@ -90,7 +95,9 @@ api.interceptors.response.use(
         ) {
 
             localStorage.removeItem("token");
+            localStorage.removeItem("role");
             localStorage.removeItem("user");
+
 
             if (!isAlreadyOnLoginPage) {
 

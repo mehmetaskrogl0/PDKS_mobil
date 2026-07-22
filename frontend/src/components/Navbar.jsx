@@ -1,76 +1,201 @@
-import { useEffect, useState } from "react";
-import { LogOut, User } from "lucide-react";
+import {
+    LogOut,
+    User,
+    ShieldCheck
+} from "lucide-react";
+
 import { useNavigate } from "react-router-dom";
 
-import api from "../api/axios";
+
+function getStoredUser() {
+
+    try {
+
+        const storedUser = localStorage.getItem("user");
+
+        if (!storedUser) {
+            return null;
+        }
+
+        return JSON.parse(storedUser);
+
+    } catch (error) {
+
+        console.error(
+            "Kullanıcı bilgisi okunamadı:",
+            error
+        );
+
+        return null;
+
+    }
+
+}
 
 
 function Navbar() {
 
     const navigate = useNavigate();
 
-    const [userName, setUserName] = useState("Kullanıcı");
+    const user = getStoredUser();
 
+    const role = String(
+        localStorage.getItem("role") ||
+        user?.role ||
+        "employee"
+    ).trim().toLowerCase();
 
-    useEffect(() => {
+    const isAdmin = role === "admin";
 
-        const getUser = async () => {
-
-            try {
-
-                const response = await api.get("/dashboard/");
-
-                setUserName(
-                    response.data.user
-                );
-
-            } catch (error) {
-
-                console.log(error);
-
-            }
-
-        };
-
-        getUser();
-
-    }, []);
+    const userName =
+        user?.full_name ||
+        `${user?.name || ""} ${user?.surname || ""}`.trim() ||
+        user?.email ||
+        "Kullanıcı";
 
 
     const logout = () => {
 
         localStorage.removeItem("token");
+        localStorage.removeItem("role");
+        localStorage.removeItem("user");
 
-        navigate("/");
+        navigate("/login", {
+            replace: true
+        });
 
     };
 
 
     return (
 
-        <nav className="bg-blue-900 text-white px-6 py-4 flex justify-between items-center shadow">
+        <nav
+            className="
+                flex
+                h-[72px]
+                items-center
+                justify-between
+                border-b
+                border-blue-800
+                bg-gradient-to-r
+                from-blue-700
+                to-blue-900
+                px-6
+                shadow-lg
+            "
+        >
 
-            <h2 className="text-xl font-bold">
-                PDKS Yönetim Sistemi
-            </h2>
+            <div>
+
+                <h2
+                    className="
+                        text-xl
+                        font-bold
+                        text-white
+                    "
+                >
+                    PDKS Yönetim Sistemi
+                </h2>
+
+                <p
+                    className="
+                        mt-1
+                        text-xs
+                        text-blue-200
+                    "
+                >
+                    {isAdmin ? "Yönetici Paneli" : "Personel Paneli"}
+                </p>
+
+            </div>
 
 
             <div className="flex items-center gap-4">
 
-                <div className="flex items-center gap-2">
+                <div
+                    className="
+                        flex
+                        items-center
+                        gap-3
+                        rounded-xl
+                        border
+                        border-white/20
+                        bg-white/10
+                        px-4
+                        py-2
+                    "
+                >
 
-                    <User size={20} />
+                    <div
+                        className="
+                            flex
+                            h-9
+                            w-9
+                            items-center
+                            justify-center
+                            rounded-full
+                            bg-white
+                            text-blue-700
+                        "
+                    >
 
-                    <span>
-                        {userName}
-                    </span>
+                        {isAdmin ? (
+                            <ShieldCheck size={20} />
+                        ) : (
+                            <User size={20} />
+                        )}
+
+                    </div>
+
+                    <div>
+
+                        <p
+                            className="
+                                max-w-40
+                                truncate
+                                text-sm
+                                font-semibold
+                                text-white
+                            "
+                        >
+                            {userName}
+                        </p>
+
+                        <p
+                            className="
+                                text-xs
+                                text-blue-200
+                            "
+                        >
+                            {isAdmin ? "Yönetici" : "Personel"}
+                        </p>
+
+                    </div>
 
                 </div>
 
 
                 <button
+                    type="button"
                     onClick={logout}
-                    className="flex items-center gap-2 bg-red-500 px-3 py-2 rounded hover:bg-red-600 transition"
+                    className="
+                        flex
+                        items-center
+                        gap-2
+                        rounded-lg
+                        border
+                        border-white/20
+                        bg-white/10
+                        px-4
+                        py-2
+                        text-sm
+                        font-semibold
+                        text-white
+                        transition-all
+                        duration-200
+                        hover:bg-white
+                        hover:text-blue-700
+                    "
                 >
 
                     <LogOut size={18} />
