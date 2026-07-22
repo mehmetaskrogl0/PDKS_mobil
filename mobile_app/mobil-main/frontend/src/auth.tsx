@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'expo-router';
 import { api, saveToken, clearToken, getToken } from './api';
 
 // Referans backend response şekli: id integer, password yok
@@ -25,6 +26,7 @@ const Ctx = createContext<AuthCtx | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   const refresh = useCallback(async () => {
     const tok = await getToken();
@@ -60,7 +62,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return await login(email, password);
   }, [login]);
 
-  const logout = useCallback(async () => { await clearToken(); setUser(null); }, []);
+  const logout = useCallback(async () => { 
+    await clearToken(); 
+    setUser(null); 
+    router.replace('/(auth)/login'); 
+  }, [router]);
 
   return <Ctx.Provider value={{ user, loading, login, register, logout, refresh }}>{children}</Ctx.Provider>;
 }
