@@ -3,11 +3,11 @@ import { storage } from '@/src/utils/storage';
 const DEFAULT_BASE_URL = 'http://192.168.1.107:8001';
 
 const BASE_URL = (
-  process.env.EXPO_PUBLIC_BACKEND_URL ?? DEFAULT_BASE_URL
+  process.env.EXPO_PUBLIC_BACKEND_URL || DEFAULT_BASE_URL
 ).trim();
 
 const API_PREFIX = (
-  process.env.EXPO_PUBLIC_API_PREFIX ?? ''
+  process.env.EXPO_PUBLIC_API_PREFIX || ''
 ).trim();
 
 const API = `${BASE_URL}${API_PREFIX}`;
@@ -36,7 +36,7 @@ async function request<T = any>(
 
   const url = `${API}${path}`;
 
-  console.log('API isteği:', url);
+  console.log('API adresi:', url);
 
   try {
     const res = await fetch(url, {
@@ -53,36 +53,30 @@ async function request<T = any>(
     let data: any = null;
 
     try {
-      data = text
-        ? JSON.parse(text)
-        : null;
+      data = text ? JSON.parse(text) : null;
     } catch {
       data = text;
     }
 
     if (!res.ok) {
-      const msg =
-        (data &&
-          (data.detail || data.message)) ||
+      const message =
+        data?.detail ||
+        data?.message ||
         `İstek başarısız (${res.status})`;
 
       throw new Error(
-        typeof msg === 'string'
-          ? msg
-          : JSON.stringify(msg)
+        typeof message === 'string'
+          ? message
+          : JSON.stringify(message)
       );
     }
 
     return data as T;
   } catch (error: any) {
-    console.error(
-      'API bağlantı hatası:',
-      error
-    );
+    console.error('API bağlantı hatası:', error);
 
     if (
-      error?.message ===
-      'Network request failed' ||
+      error?.message === 'Network request failed' ||
       error instanceof TypeError
     ) {
       throw new Error(
@@ -98,43 +92,22 @@ export const api = {
   get: <T = any>(path: string) =>
     request<T>(path, 'GET'),
 
-  post: <T = any>(
-    path: string,
-    body?: any
-  ) =>
-    request<T>(
-      path,
-      'POST',
-      body
-    ),
+  post: <T = any>(path: string, body?: any) =>
+    request<T>(path, 'POST', body),
 
-  put: <T = any>(
-    path: string,
-    body?: any
-  ) =>
-    request<T>(
-      path,
-      'PUT',
-      body
-    ),
+  put: <T = any>(path: string, body?: any) =>
+    request<T>(path, 'PUT', body),
 
   del: <T = any>(path: string) =>
     request<T>(path, 'DELETE'),
 };
 
-export async function saveToken(
-  token: string
-) {
-  await storage.secureSet(
-    TOKEN_KEY,
-    token
-  );
+export async function saveToken(token: string) {
+  await storage.secureSet(TOKEN_KEY, token);
 }
 
 export async function clearToken() {
-  await storage.secureRemove(
-    TOKEN_KEY
-  );
+  await storage.secureRemove(TOKEN_KEY);
 }
 
 export async function getToken(): Promise<string> {

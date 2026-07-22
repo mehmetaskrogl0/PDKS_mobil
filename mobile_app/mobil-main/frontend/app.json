@@ -13,7 +13,11 @@
       "bundleIdentifier": "com.emergent.workertimetrack.veunj9",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Giriş/çıkış konumunuzu doğrulamak için gereklidir",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "İş yerinizde giriş/çıkış doğrulaması için"
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "İş yerinizde giriş/çıkış doğrulaması için",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {
@@ -23,7 +27,10 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.emergent.workertimetrack.veunj9",
+      "usesCleartextTraffic": true,
       "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
       ]

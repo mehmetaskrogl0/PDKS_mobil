@@ -20,7 +20,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # Test aşamasında tüm cihazlara izin veriyoruz.
+    allow_origins=[
+        "http://localhost:8081",
+        "http://127.0.0.1:8081",
+        "http://192.168.1.107:8081"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

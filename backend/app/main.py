@@ -15,6 +15,7 @@ from .routers import teams
 from .routers import shifts
 from .routers import organization
 
+
 Base.metadata.create_all(
     bind=engine
 )
@@ -30,7 +31,12 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173"
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8081",
+        "http://127.0.0.1:8081",
+        "http://192.168.1.107:8081",
+        "http://192.168.1.107:19006"
     ],
     allow_credentials=True,
     allow_methods=["*"],
