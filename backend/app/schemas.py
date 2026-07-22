@@ -330,6 +330,8 @@ class AttendanceCheckResponse(BaseModel):
 
     distance: float | None = None
 
+    workplace: str | None = None
+
     late: bool = False
 
     late_minutes: int = 0
@@ -339,21 +341,15 @@ class AttendanceCheckResponse(BaseModel):
     missing_minutes: int = 0
 
 
-class AttendanceHistoryResponse(ORMBaseModel):
+class AttendanceHistoryResponse(BaseModel):
 
     id: int
 
-    check_in_time: datetime
+    check_in: datetime
 
-    check_out_time: datetime | None = None
+    check_out: datetime | None = None
 
-    check_in_lat: float
-
-    check_in_long: float
-
-    check_out_lat: float | None = None
-
-    check_out_long: float | None = None
+    duration: str | None = None
 
     late: bool = False
 
@@ -364,28 +360,34 @@ class AttendanceHistoryResponse(ORMBaseModel):
     missing_minutes: int = 0
 
 
-class AdminAttendanceResponse(AttendanceHistoryResponse):
+class AdminAttendanceResponse(BaseModel):
 
-    user_id: int
+    personel: str
 
-    user_name: str | None = None
+    email: EmailStr
 
-    user_surname: str | None = None
+    check_in: datetime
 
-    user_email: str | None = None
+    check_out: datetime | None = None
+
+    late: bool = False
+
+    late_minutes: int = 0
+
+    overtime_minutes: int = 0
+
+    missing_minutes: int = 0
 
 
 class LateAttendanceResponse(BaseModel):
 
-    user_id: int
+    personel: str
 
-    name: str
+    email: EmailStr
 
-    surname: str
+    check_in: datetime
 
-    check_in_time: datetime
-
-    late_minutes: int
+    late_minutes: int = 0
 
 
 # ==================================================
