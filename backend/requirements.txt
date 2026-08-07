@@ -2,9 +2,10 @@ fastapi
 uvicorn[standard]
 sqlalchemy
 pymysql
-passlib[bcrypt]
 bcrypt==4.0.1
+passlib[bcrypt]
 python-jose[cryptography]
 pydantic
+email-validator
 openpyxl
 python-dotenv
