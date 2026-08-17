@@ -1,13 +1,13 @@
 import { storage } from '@/src/utils/storage';
 
-const DEFAULT_BASE_URL = 'https://pdks-mobil.onrender.com';
+const DEFAULT_BASE_URL = 'http://127.0.0.1:8001';
 
 const BASE_URL = (
   process.env.EXPO_PUBLIC_BACKEND_URL || DEFAULT_BASE_URL
 ).trim();
 
 const API_PREFIX = (
-  process.env.EXPO_PUBLIC_API_PREFIX || ''
+  process.env.EXPO_PUBLIC_API_PREFIX || '/api'
 ).trim();
 
 const API = `${BASE_URL}${API_PREFIX}`;

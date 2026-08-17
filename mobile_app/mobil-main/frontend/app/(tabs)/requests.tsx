@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Modal, TextInput } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Modal, TextInput, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import 'dayjs/locale/tr';
 import { colors, spacing, radius, shadow } from '@/src/theme';
 import { api } from '@/src/api';
 import { dateShort, timeOnly } from '@/src/format';
+
+dayjs.extend(customParseFormat);
+dayjs.locale('tr');
 
 type Leave = { id: string; start_date: string; end_date: string; reason: string; status: 'pending' | 'approved' | 'rejected'; created_at: string; review_note?: string };
 
@@ -17,6 +24,9 @@ export default function LeaveTab() {
   const [reason, setReason] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pickerTarget, setPickerTarget] = useState<'start' | 'end' | null>(null);
+
+  const todayIso = useMemo(() => toIsoDate(new Date()), []);
 
   const load = useCallback(async () => {
     try { setRows(await api.get<Leave[]>('/leave/my')); } catch {}
@@ -25,17 +35,38 @@ export default function LeaveTab() {
 
   const submit = async () => {
     setErr('');
-    if (!startDate || !endDate || !reason.trim()) { setErr('Tüm alanlar zorunlu'); return; }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
-      setErr('Tarih formatı: YYYY-AA-GG'); return;
-    }
+    const parsedStart = parseLeaveDate(startDate);
+    const parsedEnd = parseLeaveDate(endDate, parsedStart || undefined);
+
+    if (!parsedStart || !parsedEnd || !reason.trim()) { setErr('Tüm alanlar zorunlu'); return; }
+    if (parsedEnd < parsedStart) { setErr('Bitiş tarihi başlangıç tarihinden önce olamaz'); return; }
     setBusy(true);
     try {
-      await api.post('/leave/', { start_date: startDate, end_date: endDate, reason: reason.trim() });
+      await api.post('/leave/', { start_date: parsedStart, end_date: parsedEnd, reason: reason.trim() });
       setOpen(false); setStartDate(''); setEndDate(''); setReason('');
       await load();
     } catch (e: any) { setErr(e?.message || 'Gönderilemedi'); }
     finally { setBusy(false); }
+  };
+
+  const handlePickedDate = (event: any, selectedDate?: Date) => {
+    if (Platform.OS !== 'android') {
+      setPickerTarget(null);
+    }
+
+    if (event?.type === 'dismissed' || !selectedDate) {
+      return;
+    }
+
+    const iso = toIsoDate(selectedDate);
+    if (pickerTarget === 'start') {
+      setStartDate(iso);
+      if (endDate && parseLeaveDate(endDate) && parseLeaveDate(endDate)! < selectedDate) {
+        setEndDate(iso);
+      }
+    } else if (pickerTarget === 'end') {
+      setEndDate(iso);
+    }
   };
 
   return (
@@ -80,18 +111,40 @@ export default function LeaveTab() {
           <View style={styles.sheet} testID="new-leave-sheet">
             <View style={styles.handle} />
             <Text style={styles.sTitle}>Yeni İzin Talebi</Text>
-            <Text style={styles.sSub}>Tarih formatı: YYYY-AA-GG (örn. 2026-08-15)</Text>
+            <Text style={styles.sSub}>Tarihi seçebilir ya da 17 Ağustos gibi yazabilirsiniz.</Text>
 
             <View style={styles.rowGap}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Başlangıç</Text>
-                <TextInput testID="leave-start" value={startDate} onChangeText={setStartDate}
-                  placeholder="2026-08-15" style={styles.input} placeholderTextColor={colors.muted} />
+                <View style={styles.dateFieldRow}>
+                  <TextInput
+                    testID="leave-start"
+                    value={startDate}
+                    onChangeText={setStartDate}
+                    placeholder="2026-08-15 veya 17 Ağustos"
+                    style={[styles.input, styles.dateInput]}
+                    placeholderTextColor={colors.muted}
+                  />
+                  <Pressable testID="leave-start-picker" onPress={() => setPickerTarget('start')} style={styles.pickerBtn}>
+                    <Ionicons name="calendar-outline" size={18} color={colors.brand} />
+                  </Pressable>
+                </View>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Bitiş</Text>
-                <TextInput testID="leave-end" value={endDate} onChangeText={setEndDate}
-                  placeholder="2026-08-17" style={styles.input} placeholderTextColor={colors.muted} />
+                <View style={styles.dateFieldRow}>
+                  <TextInput
+                    testID="leave-end"
+                    value={endDate}
+                    onChangeText={setEndDate}
+                    placeholder="2026-08-17 veya 20 Ağustos"
+                    style={[styles.input, styles.dateInput]}
+                    placeholderTextColor={colors.muted}
+                  />
+                  <Pressable testID="leave-end-picker" onPress={() => setPickerTarget('end')} style={styles.pickerBtn}>
+                    <Ionicons name="calendar-outline" size={18} color={colors.brand} />
+                  </Pressable>
+                </View>
               </View>
             </View>
 
@@ -114,8 +167,70 @@ export default function LeaveTab() {
           </View>
         </View>
       </Modal>
+
+      {pickerTarget && (
+        <DateTimePicker
+          value={parseLeaveDate(pickerTarget === 'start' ? startDate : endDate) ? new Date(`${parseLeaveDate(pickerTarget === 'start' ? startDate : endDate)}T00:00:00`) : new Date(todayIso + 'T00:00:00')}
+          mode="date"
+          display="default"
+          onChange={handlePickedDate}
+          minimumDate={pickerTarget === 'end' && parseLeaveDate(startDate) ? new Date(`${parseLeaveDate(startDate)}T00:00:00`) : undefined}
+        />
+      )}
     </SafeAreaView>
   );
+}
+
+function parseLeaveDate(raw: string | null | undefined, referenceDate?: string): string | null {
+  const value = String(raw || '').trim();
+  if (!value) return null;
+
+  const exactFormats = [
+    'YYYY-MM-DD',
+    'DD.MM.YYYY',
+    'D.M.YYYY',
+    'DD/MM/YYYY',
+    'D/M/YYYY',
+    'D MMMM YYYY',
+    'D MMM YYYY',
+    'DD MMMM YYYY',
+    'DD MMM YYYY',
+    'D MMMM',
+    'D MMM',
+    'DD MMMM',
+    'DD MMM',
+  ];
+
+  for (const format of exactFormats) {
+    const parsed = dayjs(value, format, 'tr', true);
+    if (parsed.isValid()) {
+      return toIsoDate(ensureFutureYear(parsed.toDate(), referenceDate));
+    }
+  }
+
+  const relaxed = dayjs(value, ['D MMMM YYYY', 'D MMMM', 'D MMM YYYY', 'D MMM'], 'tr', false);
+  if (relaxed.isValid()) {
+    return toIsoDate(ensureFutureYear(relaxed.toDate(), referenceDate));
+  }
+
+  return null;
+}
+
+function ensureFutureYear(date: Date, referenceDate?: string): Date {
+  const result = new Date(date);
+  const ref = referenceDate ? new Date(`${referenceDate}T00:00:00`) : new Date();
+  if (Number.isNaN(result.getTime())) return result;
+  if (result < ref) {
+    result.setFullYear(result.getFullYear() + 1);
+  }
+  return result;
+}
+
+function toIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function statusBadge(status: string) {
@@ -154,7 +269,10 @@ const styles = StyleSheet.create({
   sSub: { fontSize: 12, color: colors.onSurfaceSecondary, marginBottom: spacing.md, marginTop: 4 },
   rowGap: { flexDirection: 'row', gap: spacing.md },
   label: { fontSize: 12, fontWeight: '700', color: colors.onSurfaceSecondary, marginBottom: 6 },
+  dateFieldRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   input: { height: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, fontSize: 14, color: colors.onSurface, backgroundColor: colors.surfaceSecondary },
+  dateInput: { flex: 1 },
+  pickerBtn: { width: 48, height: 48, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSecondary, alignItems: 'center', justifyContent: 'center' },
   err: { color: colors.error, fontSize: 13, marginTop: spacing.sm },
   cancel: { flex: 1, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceSecondary },
   cancelText: { color: colors.onSurfaceSecondary, fontWeight: '700' },

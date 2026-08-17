@@ -184,11 +184,27 @@ def all_leaves(
                 leave.id,
 
 
+            "user_id":
+                leave.user_id,
+
+
             "personel":
                 f"{user.name} {user.surname}",
 
 
             "email":
+                user.email,
+
+
+            "user_name":
+                user.name,
+
+
+            "user_surname":
+                user.surname,
+
+
+            "user_email":
                 user.email,
 
 
@@ -273,11 +289,27 @@ def pending_leaves(
                 leave.id,
 
 
+            "user_id":
+                leave.user_id,
+
+
             "personel":
                 f"{user.name} {user.surname}",
 
 
             "email":
+                user.email,
+
+
+            "user_name":
+                user.name,
+
+
+            "user_surname":
+                user.surname,
+
+
+            "user_email":
                 user.email,
 
 

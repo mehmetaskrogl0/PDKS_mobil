@@ -439,6 +439,10 @@ class LeaveResponse(ORMBaseModel):
 
     created_at: datetime | None = None
 
+    personel: str | None = None
+
+    email: EmailStr | None = None
+
     user_name: str | None = None
 
     user_surname: str | None = None
