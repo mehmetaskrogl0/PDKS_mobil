@@ -80,6 +80,11 @@ export default function Login() {
               <Pressable testID="goto-register-button"><Text style={styles.link}> Kayıt Ol</Text></Pressable>
             </Link>
           </View>
+
+          <View style={styles.hint} testID="admin-hint">
+            <Ionicons name="shield-checkmark" size={16} color={colors.brand} />
+            <Text style={styles.hintText}>Admin: admin@atlaspdks.com / Admin1234!</Text>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -126,4 +131,9 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl },
   footText: { color: colors.onSurfaceSecondary, fontSize: 14 },
   link: { color: colors.brand, fontSize: 14, fontWeight: '700' },
+  hint: {
+    marginTop: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    padding: spacing.md, backgroundColor: colors.brandTertiary, borderRadius: radius.md,
+  },
+  hintText: { color: colors.brand, fontSize: 12, fontWeight: '600' },
 });
